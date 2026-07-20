@@ -60,7 +60,7 @@ const schema = z.object({
 
 type FormValues = z.infer<typeof schema>;
 
-export const Route = createFileRoute("/campaigns/new")({
+export const Route = createFileRoute("/_authenticated/campaigns/new")({
   component: NewCampaign,
 });
 

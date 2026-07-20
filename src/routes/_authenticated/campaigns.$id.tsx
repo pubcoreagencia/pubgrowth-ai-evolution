@@ -45,7 +45,7 @@ import {
 } from "lucide-react";
 import { useMemo, type ReactNode } from "react";
 
-export const Route = createFileRoute("/campaigns/$id")({
+export const Route = createFileRoute("/_authenticated/campaigns/$id")({
   loader: ({ params }) => {
     if (typeof window === "undefined") return { id: params.id };
     const c = getCampaign(params.id);
