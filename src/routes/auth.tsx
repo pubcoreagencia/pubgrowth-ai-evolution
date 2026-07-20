@@ -29,7 +29,7 @@ function AuthPage() {
   const goByRole = async () => {
     try {
       const { role } = await getMyRoleFn();
-      if (role === "client") navigate({ to: "/client-portal" as string as "/" });
+      if (role === "client") navigate({ to: "/client-portal" as never });
       else navigate({ to: "/" });
     } catch {
       navigate({ to: "/" });

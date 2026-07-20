@@ -21,7 +21,7 @@ import {
   YAxis,
 } from "recharts";
 
-export const Route = createFileRoute("/_client/")({
+export const Route = createFileRoute("/client-portal/")({
   component: ClientPortalPage,
   head: () => ({
     meta: [{ title: "Portal do cliente — PubGrowth AI" }],
