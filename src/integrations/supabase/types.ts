@@ -227,6 +227,62 @@ export type Database = {
         }
         Relationships: []
       }
+      payment_orders: {
+        Row: {
+          amount: number
+          client_id: string
+          created_at: string
+          expires_at: string | null
+          external_payment_id: string | null
+          id: string
+          paid_at: string | null
+          pix_copy_paste: string | null
+          pix_qrcode: string | null
+          pix_txid: string | null
+          status: Database["public"]["Enums"]["payment_status"]
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          amount: number
+          client_id: string
+          created_at?: string
+          expires_at?: string | null
+          external_payment_id?: string | null
+          id?: string
+          paid_at?: string | null
+          pix_copy_paste?: string | null
+          pix_qrcode?: string | null
+          pix_txid?: string | null
+          status?: Database["public"]["Enums"]["payment_status"]
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          amount?: number
+          client_id?: string
+          created_at?: string
+          expires_at?: string | null
+          external_payment_id?: string | null
+          id?: string
+          paid_at?: string | null
+          pix_copy_paste?: string | null
+          pix_qrcode?: string | null
+          pix_txid?: string | null
+          status?: Database["public"]["Enums"]["payment_status"]
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "payment_orders_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "clients"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       profiles: {
         Row: {
           avatar_url: string | null
@@ -656,6 +712,7 @@ export type Database = {
         | "active"
         | "cancelled"
         | "refunded"
+      payment_status: "pending" | "paid" | "expired" | "cancelled"
       social_platform: "instagram" | "tiktok" | "youtube" | "facebook"
       wallet_entry_type: "credit" | "debit" | "refund" | "adjustment"
     }
@@ -805,6 +862,7 @@ export const Constants = {
         "cancelled",
         "refunded",
       ],
+      payment_status: ["pending", "paid", "expired", "cancelled"],
       social_platform: ["instagram", "tiktok", "youtube", "facebook"],
       wallet_entry_type: ["credit", "debit", "refund", "adjustment"],
     },
