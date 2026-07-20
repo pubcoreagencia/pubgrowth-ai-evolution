@@ -402,3 +402,57 @@ function NumberField({
     />
   );
 }
+
+function ClientPicker({
+  control,
+  setValue,
+}: {
+  control: Control<FormValues>;
+  setValue: UseFormSetValue<FormValues>;
+}) {
+  const { data: clients = [] } = useQuery({
+    queryKey: ["clients"],
+    queryFn: () => listClientsFn(),
+    initialData: [],
+  });
+  return (
+    <FormField
+      control={control}
+      name="clientId"
+      render={({ field }) => (
+        <FormItem>
+          <FormLabel>Cliente</FormLabel>
+          <Select
+            value={(field.value as string | undefined) ?? ""}
+            onValueChange={(v) => {
+              field.onChange(v);
+              const c = clients.find((x) => x.id === v);
+              if (c) setValue("clientName", c.name, { shouldValidate: true });
+            }}
+          >
+            <FormControl>
+              <SelectTrigger>
+                <SelectValue placeholder="Selecione um cliente" />
+              </SelectTrigger>
+            </FormControl>
+            <SelectContent>
+              {clients.length === 0 ? (
+                <div className="px-2 py-3 text-xs text-muted-foreground">
+                  Nenhum cliente cadastrado. Crie um em /clients.
+                </div>
+              ) : (
+                clients.map((c) => (
+                  <SelectItem key={c.id} value={c.id}>
+                    {c.name}
+                    {c.company ? ` · ${c.company}` : ""}
+                  </SelectItem>
+                ))
+              )}
+            </SelectContent>
+          </Select>
+          <FormMessage />
+        </FormItem>
+      )}
+    />
+  );
+}
