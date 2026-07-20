@@ -1,5 +1,5 @@
-import { createFileRoute, Link, notFound } from "@tanstack/react-router";
-import { useCampaign, getCampaign } from "@/lib/campaigns-store";
+import { createFileRoute, Link } from "@tanstack/react-router";
+import { useCampaign } from "@/lib/campaigns-store";
 import { useEstimationSettings } from "@/lib/estimation-settings";
 import {
   buildExecutiveReport,
@@ -46,12 +46,6 @@ import {
 import { useMemo, type ReactNode } from "react";
 
 export const Route = createFileRoute("/_authenticated/campaigns/$id")({
-  loader: ({ params }) => {
-    if (typeof window === "undefined") return { id: params.id };
-    const c = getCampaign(params.id);
-    if (!c) throw notFound();
-    return { id: params.id };
-  },
   component: CampaignDetail,
   notFoundComponent: () => (
     <div className="mx-auto max-w-2xl px-4 py-16 text-center">
