@@ -3,6 +3,8 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { useEffect } from "react";
+import { useQuery } from "@tanstack/react-query";
+import { listClientsFn } from "@/lib/clients.functions";
 import {
   Form,
   FormControl,
@@ -164,19 +166,7 @@ function NewCampaign() {
           <section className="surface-card p-6">
             <SectionTitle>Configuração da campanha</SectionTitle>
             <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-              <FormField
-                control={form.control}
-                name="clientName"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Cliente</FormLabel>
-                    <FormControl>
-                      <Input placeholder="Ex: Loja Aurora" {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
+              <ClientPicker control={form.control} setValue={form.setValue} />
               <FormField
                 control={form.control}
                 name="campaignName"
@@ -239,6 +229,32 @@ function NewCampaign() {
                     <FormControl>
                       <Input type="number" step="0.01" min="0" {...field} />
                     </FormControl>
+                    <FormDescription>Usado pelo motor de estimativas.</FormDescription>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={form.control}
+                name="budget"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Budget total (R$)</FormLabel>
+                    <FormControl>
+                      <Input
+                        type="number"
+                        step="0.01"
+                        min="0"
+                        {...field}
+                        value={(field.value as number | undefined) ?? ""}
+                        onChange={(e) =>
+                          field.onChange(e.target.value === "" ? undefined : e.target.valueAsNumber)
+                        }
+                      />
+                    </FormControl>
+                    <FormDescription>
+                      Verba oficial descontada da carteira ao financiar.
+                    </FormDescription>
                     <FormMessage />
                   </FormItem>
                 )}
