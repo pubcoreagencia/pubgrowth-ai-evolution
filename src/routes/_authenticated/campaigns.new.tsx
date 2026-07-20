@@ -28,6 +28,7 @@ import { toast } from "sonner";
 import { ArrowLeft, Info, Sparkles } from "lucide-react";
 import { Link } from "@tanstack/react-router";
 import type { Control } from "react-hook-form";
+import type { UseFormSetValue } from "react-hook-form";
 
 const schema = z.object({
   clientName: z.string().trim().min(1, "Informe o cliente").max(100),
