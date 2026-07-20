@@ -178,6 +178,118 @@ export type Database = {
         }
         Relationships: []
       }
+      social_metrics_history: {
+        Row: {
+          comments: number
+          created_at: string
+          engagement_rate: number
+          followers: number
+          id: string
+          impressions: number
+          likes: number
+          notes: string | null
+          reach: number
+          recorded_at: string
+          shares: number
+          social_profile_id: string
+          user_id: string
+          views: number
+        }
+        Insert: {
+          comments?: number
+          created_at?: string
+          engagement_rate?: number
+          followers?: number
+          id?: string
+          impressions?: number
+          likes?: number
+          notes?: string | null
+          reach?: number
+          recorded_at?: string
+          shares?: number
+          social_profile_id: string
+          user_id: string
+          views?: number
+        }
+        Update: {
+          comments?: number
+          created_at?: string
+          engagement_rate?: number
+          followers?: number
+          id?: string
+          impressions?: number
+          likes?: number
+          notes?: string | null
+          reach?: number
+          recorded_at?: string
+          shares?: number
+          social_profile_id?: string
+          user_id?: string
+          views?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "social_metrics_history_social_profile_id_fkey"
+            columns: ["social_profile_id"]
+            isOneToOne: false
+            referencedRelation: "social_profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      social_profiles: {
+        Row: {
+          avatar_url: string | null
+          client_id: string
+          created_at: string
+          current_followers: number
+          id: string
+          is_active: boolean
+          platform: Database["public"]["Enums"]["social_platform"]
+          profile_name: string
+          profile_url: string | null
+          updated_at: string
+          user_id: string
+          username: string
+        }
+        Insert: {
+          avatar_url?: string | null
+          client_id: string
+          created_at?: string
+          current_followers?: number
+          id?: string
+          is_active?: boolean
+          platform: Database["public"]["Enums"]["social_platform"]
+          profile_name: string
+          profile_url?: string | null
+          updated_at?: string
+          user_id: string
+          username: string
+        }
+        Update: {
+          avatar_url?: string | null
+          client_id?: string
+          created_at?: string
+          current_followers?: number
+          id?: string
+          is_active?: boolean
+          platform?: Database["public"]["Enums"]["social_platform"]
+          profile_name?: string
+          profile_url?: string | null
+          updated_at?: string
+          user_id?: string
+          username?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "social_profiles_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "clients"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       subscriptions: {
         Row: {
           created_at: string
@@ -250,6 +362,7 @@ export type Database = {
         | "sales"
         | "awareness"
       campaign_status: "draft" | "running" | "completed"
+      social_platform: "instagram" | "tiktok" | "youtube" | "facebook"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -388,6 +501,7 @@ export const Constants = {
         "awareness",
       ],
       campaign_status: ["draft", "running", "completed"],
+      social_platform: ["instagram", "tiktok", "youtube", "facebook"],
     },
   },
 } as const

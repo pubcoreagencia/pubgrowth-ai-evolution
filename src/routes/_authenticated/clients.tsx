@@ -1,4 +1,4 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, Link } from "@tanstack/react-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 import { listClientsFn, createClientFn, deleteClientFn, type Client } from "@/lib/clients.functions";
@@ -15,7 +15,7 @@ import {
 } from "@/components/ui/table";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { toast } from "sonner";
-import { Trash2, PlusCircle } from "lucide-react";
+import { Trash2, PlusCircle, ArrowRight } from "lucide-react";
 
 export const Route = createFileRoute("/_authenticated/clients")({
   component: ClientsPage,
@@ -127,7 +127,7 @@ function ClientsPage() {
                       <TableHead>Nome</TableHead>
                       <TableHead>Empresa</TableHead>
                       <TableHead>Segmento</TableHead>
-                      <TableHead className="w-[60px]" />
+                      <TableHead className="w-[120px]" />
                     </TableRow>
                   </TableHeader>
                   <TableBody>
@@ -137,14 +137,21 @@ function ClientsPage() {
                         <TableCell className="text-muted-foreground">{c.company ?? "—"}</TableCell>
                         <TableCell className="text-muted-foreground">{c.segment ?? "—"}</TableCell>
                         <TableCell>
-                          <Button
-                            size="icon"
-                            variant="ghost"
-                            onClick={() => onDelete(c.id)}
-                            aria-label="Remover cliente"
-                          >
-                            <Trash2 className="h-4 w-4" />
-                          </Button>
+                          <div className="flex items-center justify-end gap-1">
+                            <Button asChild size="sm" variant="ghost" className="gap-1">
+                              <Link to="/clients/$id" params={{ id: c.id }}>
+                                Abrir <ArrowRight className="h-3.5 w-3.5" />
+                              </Link>
+                            </Button>
+                            <Button
+                              size="icon"
+                              variant="ghost"
+                              onClick={() => onDelete(c.id)}
+                              aria-label="Remover cliente"
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          </div>
                         </TableCell>
                       </TableRow>
                     ))}

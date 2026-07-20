@@ -1,0 +1,1 @@
+REVOKE EXECUTE ON FUNCTION public.sync_current_followers() FROM PUBLIC, anon, authenticated;
