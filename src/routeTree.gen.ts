@@ -9,133 +9,208 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
-import { Route as SettingsRouteImport } from './routes/settings'
-import { Route as IndexRouteImport } from './routes/index'
-import { Route as CampaignsIndexRouteImport } from './routes/campaigns.index'
-import { Route as CampaignsNewRouteImport } from './routes/campaigns.new'
-import { Route as CampaignsIdRouteImport } from './routes/campaigns.$id'
+import { Route as AuthRouteImport } from './routes/auth'
+import { Route as AuthenticatedRouteRouteImport } from './routes/_authenticated/route'
+import { Route as AuthenticatedIndexRouteImport } from './routes/_authenticated/index'
+import { Route as AuthenticatedSettingsRouteImport } from './routes/_authenticated/settings'
+import { Route as AuthenticatedClientsRouteImport } from './routes/_authenticated/clients'
+import { Route as AuthenticatedCampaignsIndexRouteImport } from './routes/_authenticated/campaigns.index'
+import { Route as AuthenticatedCampaignsNewRouteImport } from './routes/_authenticated/campaigns.new'
+import { Route as AuthenticatedCampaignsIdRouteImport } from './routes/_authenticated/campaigns.$id'
 
-const SettingsRoute = SettingsRouteImport.update({
-  id: '/settings',
-  path: '/settings',
+const AuthRoute = AuthRouteImport.update({
+  id: '/auth',
+  path: '/auth',
   getParentRoute: () => rootRouteImport,
 } as any)
-const IndexRoute = IndexRouteImport.update({
+const AuthenticatedRouteRoute = AuthenticatedRouteRouteImport.update({
+  id: '/_authenticated',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AuthenticatedIndexRoute = AuthenticatedIndexRouteImport.update({
   id: '/',
   path: '/',
-  getParentRoute: () => rootRouteImport,
+  getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
-const CampaignsIndexRoute = CampaignsIndexRouteImport.update({
-  id: '/campaigns/',
-  path: '/campaigns/',
-  getParentRoute: () => rootRouteImport,
+const AuthenticatedSettingsRoute = AuthenticatedSettingsRouteImport.update({
+  id: '/settings',
+  path: '/settings',
+  getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
-const CampaignsNewRoute = CampaignsNewRouteImport.update({
-  id: '/campaigns/new',
-  path: '/campaigns/new',
-  getParentRoute: () => rootRouteImport,
+const AuthenticatedClientsRoute = AuthenticatedClientsRouteImport.update({
+  id: '/clients',
+  path: '/clients',
+  getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
-const CampaignsIdRoute = CampaignsIdRouteImport.update({
-  id: '/campaigns/$id',
-  path: '/campaigns/$id',
-  getParentRoute: () => rootRouteImport,
-} as any)
+const AuthenticatedCampaignsIndexRoute =
+  AuthenticatedCampaignsIndexRouteImport.update({
+    id: '/campaigns/',
+    path: '/campaigns/',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
+const AuthenticatedCampaignsNewRoute =
+  AuthenticatedCampaignsNewRouteImport.update({
+    id: '/campaigns/new',
+    path: '/campaigns/new',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
+const AuthenticatedCampaignsIdRoute =
+  AuthenticatedCampaignsIdRouteImport.update({
+    id: '/campaigns/$id',
+    path: '/campaigns/$id',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
 
 export interface FileRoutesByFullPath {
-  '/': typeof IndexRoute
-  '/settings': typeof SettingsRoute
-  '/campaigns/$id': typeof CampaignsIdRoute
-  '/campaigns/new': typeof CampaignsNewRoute
-  '/campaigns/': typeof CampaignsIndexRoute
+  '/': typeof AuthenticatedIndexRoute
+  '/auth': typeof AuthRoute
+  '/clients': typeof AuthenticatedClientsRoute
+  '/settings': typeof AuthenticatedSettingsRoute
+  '/campaigns/$id': typeof AuthenticatedCampaignsIdRoute
+  '/campaigns/new': typeof AuthenticatedCampaignsNewRoute
+  '/campaigns/': typeof AuthenticatedCampaignsIndexRoute
 }
 export interface FileRoutesByTo {
-  '/': typeof IndexRoute
-  '/settings': typeof SettingsRoute
-  '/campaigns/$id': typeof CampaignsIdRoute
-  '/campaigns/new': typeof CampaignsNewRoute
-  '/campaigns': typeof CampaignsIndexRoute
+  '/auth': typeof AuthRoute
+  '/clients': typeof AuthenticatedClientsRoute
+  '/settings': typeof AuthenticatedSettingsRoute
+  '/': typeof AuthenticatedIndexRoute
+  '/campaigns/$id': typeof AuthenticatedCampaignsIdRoute
+  '/campaigns/new': typeof AuthenticatedCampaignsNewRoute
+  '/campaigns': typeof AuthenticatedCampaignsIndexRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
-  '/': typeof IndexRoute
-  '/settings': typeof SettingsRoute
-  '/campaigns/$id': typeof CampaignsIdRoute
-  '/campaigns/new': typeof CampaignsNewRoute
-  '/campaigns/': typeof CampaignsIndexRoute
+  '/_authenticated': typeof AuthenticatedRouteRouteWithChildren
+  '/auth': typeof AuthRoute
+  '/_authenticated/clients': typeof AuthenticatedClientsRoute
+  '/_authenticated/settings': typeof AuthenticatedSettingsRoute
+  '/_authenticated/': typeof AuthenticatedIndexRoute
+  '/_authenticated/campaigns/$id': typeof AuthenticatedCampaignsIdRoute
+  '/_authenticated/campaigns/new': typeof AuthenticatedCampaignsNewRoute
+  '/_authenticated/campaigns/': typeof AuthenticatedCampaignsIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
     | '/'
+    | '/auth'
+    | '/clients'
     | '/settings'
     | '/campaigns/$id'
     | '/campaigns/new'
     | '/campaigns/'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/settings' | '/campaigns/$id' | '/campaigns/new' | '/campaigns'
-  id:
-    | '__root__'
-    | '/'
+  to:
+    | '/auth'
+    | '/clients'
     | '/settings'
+    | '/'
     | '/campaigns/$id'
     | '/campaigns/new'
-    | '/campaigns/'
+    | '/campaigns'
+  id:
+    | '__root__'
+    | '/_authenticated'
+    | '/auth'
+    | '/_authenticated/clients'
+    | '/_authenticated/settings'
+    | '/_authenticated/'
+    | '/_authenticated/campaigns/$id'
+    | '/_authenticated/campaigns/new'
+    | '/_authenticated/campaigns/'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
-  IndexRoute: typeof IndexRoute
-  SettingsRoute: typeof SettingsRoute
-  CampaignsIdRoute: typeof CampaignsIdRoute
-  CampaignsNewRoute: typeof CampaignsNewRoute
-  CampaignsIndexRoute: typeof CampaignsIndexRoute
+  AuthenticatedRouteRoute: typeof AuthenticatedRouteRouteWithChildren
+  AuthRoute: typeof AuthRoute
 }
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
-    '/settings': {
-      id: '/settings'
-      path: '/settings'
-      fullPath: '/settings'
-      preLoaderRoute: typeof SettingsRouteImport
+    '/auth': {
+      id: '/auth'
+      path: '/auth'
+      fullPath: '/auth'
+      preLoaderRoute: typeof AuthRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/': {
-      id: '/'
+    '/_authenticated': {
+      id: '/_authenticated'
+      path: ''
+      fullPath: '/'
+      preLoaderRoute: typeof AuthenticatedRouteRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/_authenticated/': {
+      id: '/_authenticated/'
       path: '/'
       fullPath: '/'
-      preLoaderRoute: typeof IndexRouteImport
-      parentRoute: typeof rootRouteImport
+      preLoaderRoute: typeof AuthenticatedIndexRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
     }
-    '/campaigns/': {
-      id: '/campaigns/'
+    '/_authenticated/settings': {
+      id: '/_authenticated/settings'
+      path: '/settings'
+      fullPath: '/settings'
+      preLoaderRoute: typeof AuthenticatedSettingsRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/clients': {
+      id: '/_authenticated/clients'
+      path: '/clients'
+      fullPath: '/clients'
+      preLoaderRoute: typeof AuthenticatedClientsRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/campaigns/': {
+      id: '/_authenticated/campaigns/'
       path: '/campaigns'
       fullPath: '/campaigns/'
-      preLoaderRoute: typeof CampaignsIndexRouteImport
-      parentRoute: typeof rootRouteImport
+      preLoaderRoute: typeof AuthenticatedCampaignsIndexRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
     }
-    '/campaigns/new': {
-      id: '/campaigns/new'
+    '/_authenticated/campaigns/new': {
+      id: '/_authenticated/campaigns/new'
       path: '/campaigns/new'
       fullPath: '/campaigns/new'
-      preLoaderRoute: typeof CampaignsNewRouteImport
-      parentRoute: typeof rootRouteImport
+      preLoaderRoute: typeof AuthenticatedCampaignsNewRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
     }
-    '/campaigns/$id': {
-      id: '/campaigns/$id'
+    '/_authenticated/campaigns/$id': {
+      id: '/_authenticated/campaigns/$id'
       path: '/campaigns/$id'
       fullPath: '/campaigns/$id'
-      preLoaderRoute: typeof CampaignsIdRouteImport
-      parentRoute: typeof rootRouteImport
+      preLoaderRoute: typeof AuthenticatedCampaignsIdRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
     }
   }
 }
 
+interface AuthenticatedRouteRouteChildren {
+  AuthenticatedClientsRoute: typeof AuthenticatedClientsRoute
+  AuthenticatedSettingsRoute: typeof AuthenticatedSettingsRoute
+  AuthenticatedIndexRoute: typeof AuthenticatedIndexRoute
+  AuthenticatedCampaignsIdRoute: typeof AuthenticatedCampaignsIdRoute
+  AuthenticatedCampaignsNewRoute: typeof AuthenticatedCampaignsNewRoute
+  AuthenticatedCampaignsIndexRoute: typeof AuthenticatedCampaignsIndexRoute
+}
+
+const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
+  AuthenticatedClientsRoute: AuthenticatedClientsRoute,
+  AuthenticatedSettingsRoute: AuthenticatedSettingsRoute,
+  AuthenticatedIndexRoute: AuthenticatedIndexRoute,
+  AuthenticatedCampaignsIdRoute: AuthenticatedCampaignsIdRoute,
+  AuthenticatedCampaignsNewRoute: AuthenticatedCampaignsNewRoute,
+  AuthenticatedCampaignsIndexRoute: AuthenticatedCampaignsIndexRoute,
+}
+
+const AuthenticatedRouteRouteWithChildren =
+  AuthenticatedRouteRoute._addFileChildren(AuthenticatedRouteRouteChildren)
+
 const rootRouteChildren: RootRouteChildren = {
-  IndexRoute: IndexRoute,
-  SettingsRoute: SettingsRoute,
-  CampaignsIdRoute: CampaignsIdRoute,
-  CampaignsNewRoute: CampaignsNewRoute,
-  CampaignsIndexRoute: CampaignsIndexRoute,
+  AuthenticatedRouteRoute: AuthenticatedRouteRouteWithChildren,
+  AuthRoute: AuthRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

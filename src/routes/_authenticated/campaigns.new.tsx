@@ -60,7 +60,7 @@ const schema = z.object({
 
 type FormValues = z.infer<typeof schema>;
 
-export const Route = createFileRoute("/campaigns/new")({
+export const Route = createFileRoute("/_authenticated/campaigns/new")({
   component: NewCampaign,
 });
 
@@ -91,8 +91,9 @@ function NewCampaign() {
     }
   }, [start, end, form]);
 
-  const onSubmit = (v: FormValues) => {
-    const created = createCampaign(
+  const onSubmit = async (v: FormValues) => {
+    try {
+    const created = await createCampaign(
       {
         clientName: v.clientName,
         campaignName: v.campaignName,
@@ -121,6 +122,9 @@ function NewCampaign() {
     );
     toast.success("Campanha criada");
     navigate({ to: "/campaigns/$id", params: { id: created.id } });
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Erro ao criar campanha");
+    }
   };
 
   return (

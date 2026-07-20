@@ -24,7 +24,7 @@ import {
 import { PlusCircle, Search, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 
-export const Route = createFileRoute("/campaigns/")({
+export const Route = createFileRoute("/_authenticated/campaigns/")({
   component: CampaignsList,
 });
 

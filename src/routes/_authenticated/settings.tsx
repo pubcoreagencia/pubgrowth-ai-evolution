@@ -1,10 +1,11 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import {
   DEFAULT_SETTINGS,
-  getEstimationSettings,
+  useEstimationSettings,
   resetEstimationSettings,
   saveEstimationSettings,
+  useInvalidateEstimationSettings,
   type EstimationSettings,
 } from "@/lib/estimation-settings";
 import { Input } from "@/components/ui/input";
@@ -13,7 +14,7 @@ import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
 import { Info, RotateCcw, Save } from "lucide-react";
 
-export const Route = createFileRoute("/settings")({
+export const Route = createFileRoute("/_authenticated/settings")({
   component: SettingsPage,
 });
 
@@ -34,17 +35,34 @@ const fields: FieldMeta[] = [
 ];
 
 function SettingsPage() {
-  const [values, setValues] = useState<EstimationSettings>(() => getEstimationSettings());
+  const server = useEstimationSettings();
+  const invalidate = useInvalidateEstimationSettings();
+  const [values, setValues] = useState<EstimationSettings>(server);
 
-  const handleSave = () => {
-    saveEstimationSettings(values);
-    toast.success("Configurações salvas");
+  // Keep local form in sync when server data loads.
+  useEffect(() => {
+    setValues(server);
+  }, [server]);
+
+  const handleSave = async () => {
+    try {
+      await saveEstimationSettings(values);
+      invalidate();
+      toast.success("Configurações salvas");
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Erro ao salvar");
+    }
   };
 
-  const handleReset = () => {
-    resetEstimationSettings();
-    setValues(DEFAULT_SETTINGS);
-    toast.success("Valores restaurados");
+  const handleReset = async () => {
+    try {
+      await resetEstimationSettings();
+      setValues(DEFAULT_SETTINGS);
+      invalidate();
+      toast.success("Valores restaurados");
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Erro ao restaurar");
+    }
   };
 
   const groups: Array<{ id: FieldMeta["group"]; title: string; desc: string }> = [
