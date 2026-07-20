@@ -2,6 +2,7 @@ import { createFileRoute, useNavigate, Link } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { lovable } from "@/integrations/lovable/index";
+import { getMyRoleFn } from "@/lib/client-portal.functions";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -25,12 +26,23 @@ function AuthPage() {
   const [checking, setChecking] = useState(true);
   const [loading, setLoading] = useState(false);
 
+  const goByRole = async () => {
+    try {
+      const { role } = await getMyRoleFn();
+      if (role === "client") navigate({ to: "/client-portal" as string as "/" });
+      else navigate({ to: "/" });
+    } catch {
+      navigate({ to: "/" });
+    }
+  };
+
   useEffect(() => {
-    supabase.auth.getSession().then(({ data }) => {
-      if (data.session) navigate({ to: "/" });
+    supabase.auth.getSession().then(async ({ data }) => {
+      if (data.session) await goByRole();
       else setChecking(false);
     });
-  }, [navigate]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const handleSignIn = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
@@ -42,7 +54,7 @@ function AuthPage() {
     setLoading(false);
     if (error) return toast.error(error.message);
     toast.success("Bem-vindo de volta!");
-    navigate({ to: "/" });
+    await goByRole();
   };
 
   const handleSignUp = async (e: React.FormEvent<HTMLFormElement>) => {
@@ -63,7 +75,7 @@ function AuthPage() {
     setLoading(false);
     if (error) return toast.error(error.message);
     toast.success("Conta criada! Verifique seu e-mail se a confirmação estiver ativa.");
-    navigate({ to: "/" });
+    await goByRole();
   };
 
   const handleGoogle = async () => {
@@ -74,7 +86,7 @@ function AuthPage() {
     setLoading(false);
     if (result.error) return toast.error(result.error.message ?? "Falha ao entrar com Google");
     if (result.redirected) return;
-    navigate({ to: "/" });
+    await goByRole();
   };
 
   if (checking) {
