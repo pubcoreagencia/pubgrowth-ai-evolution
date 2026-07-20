@@ -140,25 +140,25 @@ function ClientPortalPage() {
       {/* KPIs */}
       <div className="mt-6 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
         <StatCard
-          title="Campanhas ativas"
+          label="Campanhas ativas"
           value={int(activeCampaigns.length)}
           icon={<Activity className="h-4 w-4" />}
           hint={`${data.campaigns.length} no total`}
         />
         <StatCard
-          title="Investido"
+          label="Investido"
           value={brl(invested)}
           icon={<BarChart3 className="h-4 w-4" />}
           hint="Verba consumida"
         />
         <StatCard
-          title="Saldo disponível"
+          label="Saldo disponível"
           value={data.wallet ? brl(data.wallet.balance) : "—"}
           icon={<WalletIcon className="h-4 w-4" />}
           hint={data.wallet ? "Em carteira" : "Sem carteira"}
         />
         <StatCard
-          title="Crescimento (90d)"
+          label="Crescimento (90d)"
           value={followersDelta.pct === null ? "—" : `${followersDelta.pct >= 0 ? "+" : ""}${followersDelta.pct.toFixed(1)}%`}
           icon={<TrendingUp className="h-4 w-4" />}
           hint={
