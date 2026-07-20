@@ -3,6 +3,8 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { useEffect } from "react";
+import { useQuery } from "@tanstack/react-query";
+import { listClientsFn } from "@/lib/clients.functions";
 import {
   Form,
   FormControl,
@@ -26,9 +28,11 @@ import { toast } from "sonner";
 import { ArrowLeft, Info, Sparkles } from "lucide-react";
 import { Link } from "@tanstack/react-router";
 import type { Control } from "react-hook-form";
+import type { UseFormSetValue } from "react-hook-form";
 
 const schema = z.object({
   clientName: z.string().trim().min(1, "Informe o cliente").max(100),
+  clientId: z.string().uuid().optional().or(z.literal("")).transform((v) => (v ? v : undefined)),
   campaignName: z.string().trim().min(1, "Informe o nome da campanha").max(120),
   videoUrl: z
     .string()
@@ -39,6 +43,7 @@ const schema = z.object({
   startDate: z.string().min(1, "Informe a data inicial"),
   endDate: z.string().min(1, "Informe a data final"),
   dailyBudget: z.coerce.number().min(0, "Valor inválido"),
+  budget: z.coerce.number().min(0, "Valor inválido").optional(),
   days: z.coerce.number().int().min(1, "Mínimo 1 dia"),
   objective: z.enum(["views", "engagement", "traffic", "conversion", "sales", "awareness"]),
   avgProductValue: z.coerce.number().min(0).optional(),
@@ -96,11 +101,13 @@ function NewCampaign() {
     const created = await createCampaign(
       {
         clientName: v.clientName,
+        clientId: v.clientId ?? null,
         campaignName: v.campaignName,
         videoUrl: v.videoUrl,
         startDate: v.startDate,
         endDate: v.endDate,
         dailyBudget: v.dailyBudget,
+        budget: v.budget ?? 0,
         days: v.days,
         objective: v.objective,
         avgProductValue: v.avgProductValue,
@@ -160,19 +167,7 @@ function NewCampaign() {
           <section className="surface-card p-6">
             <SectionTitle>Configuração da campanha</SectionTitle>
             <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-              <FormField
-                control={form.control}
-                name="clientName"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Cliente</FormLabel>
-                    <FormControl>
-                      <Input placeholder="Ex: Loja Aurora" {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
+              <ClientPicker control={form.control} setValue={form.setValue} />
               <FormField
                 control={form.control}
                 name="campaignName"
@@ -235,6 +230,32 @@ function NewCampaign() {
                     <FormControl>
                       <Input type="number" step="0.01" min="0" {...field} />
                     </FormControl>
+                    <FormDescription>Usado pelo motor de estimativas.</FormDescription>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={form.control}
+                name="budget"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Budget total (R$)</FormLabel>
+                    <FormControl>
+                      <Input
+                        type="number"
+                        step="0.01"
+                        min="0"
+                        {...field}
+                        value={(field.value as number | undefined) ?? ""}
+                        onChange={(e) =>
+                          field.onChange(e.target.value === "" ? undefined : e.target.valueAsNumber)
+                        }
+                      />
+                    </FormControl>
+                    <FormDescription>
+                      Verba oficial descontada da carteira ao financiar.
+                    </FormDescription>
                     <FormMessage />
                   </FormItem>
                 )}
@@ -375,6 +396,60 @@ function NumberField({
               }
             />
           </FormControl>
+          <FormMessage />
+        </FormItem>
+      )}
+    />
+  );
+}
+
+function ClientPicker({
+  control,
+  setValue,
+}: {
+  control: Control<FormValues>;
+  setValue: UseFormSetValue<FormValues>;
+}) {
+  const { data: clients = [] } = useQuery({
+    queryKey: ["clients"],
+    queryFn: () => listClientsFn(),
+    initialData: [],
+  });
+  return (
+    <FormField
+      control={control}
+      name="clientId"
+      render={({ field }) => (
+        <FormItem>
+          <FormLabel>Cliente</FormLabel>
+          <Select
+            value={(field.value as string | undefined) ?? ""}
+            onValueChange={(v) => {
+              field.onChange(v);
+              const c = clients.find((x) => x.id === v);
+              if (c) setValue("clientName", c.name, { shouldValidate: true });
+            }}
+          >
+            <FormControl>
+              <SelectTrigger>
+                <SelectValue placeholder="Selecione um cliente" />
+              </SelectTrigger>
+            </FormControl>
+            <SelectContent>
+              {clients.length === 0 ? (
+                <div className="px-2 py-3 text-xs text-muted-foreground">
+                  Nenhum cliente cadastrado. Crie um em /clients.
+                </div>
+              ) : (
+                clients.map((c) => (
+                  <SelectItem key={c.id} value={c.id}>
+                    {c.name}
+                    {c.company ? ` · ${c.company}` : ""}
+                  </SelectItem>
+                ))
+              )}
+            </SelectContent>
+          </Select>
           <FormMessage />
         </FormItem>
       )}

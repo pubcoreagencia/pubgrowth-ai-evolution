@@ -19,6 +19,7 @@ export type Database = {
           avg_cross_sell_value: number | null
           avg_product_value: number | null
           avg_upsell_value: number | null
+          budget: number
           campaign_name: string
           client_id: string | null
           client_name_legacy: string | null
@@ -39,6 +40,7 @@ export type Database = {
           avg_cross_sell_value?: number | null
           avg_product_value?: number | null
           avg_upsell_value?: number | null
+          budget?: number
           campaign_name: string
           client_id?: string | null
           client_name_legacy?: string | null
@@ -59,6 +61,7 @@ export type Database = {
           avg_cross_sell_value?: number | null
           avg_product_value?: number | null
           avg_upsell_value?: number | null
+          budget?: number
           campaign_name?: string
           client_id?: string | null
           client_name_legacy?: string | null
@@ -80,6 +83,44 @@ export type Database = {
             foreignKeyName: "campaigns_client_id_fkey"
             columns: ["client_id"]
             isOneToOne: false
+            referencedRelation: "clients"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      client_wallets: {
+        Row: {
+          balance: number
+          client_id: string
+          created_at: string
+          currency: string
+          id: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          balance?: number
+          client_id: string
+          created_at?: string
+          currency?: string
+          id?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          balance?: number
+          client_id?: string
+          created_at?: string
+          currency?: string
+          id?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "client_wallets_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: true
             referencedRelation: "clients"
             referencedColumns: ["id"]
           },
@@ -338,17 +379,229 @@ export type Database = {
         }
         Relationships: []
       }
+      wallet_ledger: {
+        Row: {
+          amount: number
+          balance_after: number
+          campaign_id: string | null
+          client_id: string
+          created_at: string
+          created_by: string | null
+          entry_type: Database["public"]["Enums"]["wallet_entry_type"]
+          id: string
+          note: string | null
+          user_id: string
+          wallet_id: string
+        }
+        Insert: {
+          amount: number
+          balance_after: number
+          campaign_id?: string | null
+          client_id: string
+          created_at?: string
+          created_by?: string | null
+          entry_type: Database["public"]["Enums"]["wallet_entry_type"]
+          id?: string
+          note?: string | null
+          user_id: string
+          wallet_id: string
+        }
+        Update: {
+          amount?: number
+          balance_after?: number
+          campaign_id?: string | null
+          client_id?: string
+          created_at?: string
+          created_by?: string | null
+          entry_type?: Database["public"]["Enums"]["wallet_entry_type"]
+          id?: string
+          note?: string | null
+          user_id?: string
+          wallet_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "wallet_ledger_campaign_id_fkey"
+            columns: ["campaign_id"]
+            isOneToOne: false
+            referencedRelation: "campaigns"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "wallet_ledger_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "clients"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "wallet_ledger_wallet_id_fkey"
+            columns: ["wallet_id"]
+            isOneToOne: false
+            referencedRelation: "client_wallets"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Views: {
       [_ in never]: never
     }
     Functions: {
+      activate_campaign: {
+        Args: { _campaign_id: string }
+        Returns: {
+          avg_cross_sell_value: number | null
+          avg_product_value: number | null
+          avg_upsell_value: number | null
+          budget: number
+          campaign_name: string
+          client_id: string | null
+          client_name_legacy: string | null
+          created_at: string
+          daily_budget: number
+          days: number
+          end_date: string | null
+          id: string
+          objective: Database["public"]["Enums"]["campaign_objective"]
+          results: Json
+          start_date: string | null
+          status: Database["public"]["Enums"]["campaign_status"]
+          updated_at: string
+          user_id: string
+          video_url: string | null
+        }
+        SetofOptions: {
+          from: "*"
+          to: "campaigns"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
+      complete_campaign: {
+        Args: { _campaign_id: string }
+        Returns: {
+          avg_cross_sell_value: number | null
+          avg_product_value: number | null
+          avg_upsell_value: number | null
+          budget: number
+          campaign_name: string
+          client_id: string | null
+          client_name_legacy: string | null
+          created_at: string
+          daily_budget: number
+          days: number
+          end_date: string | null
+          id: string
+          objective: Database["public"]["Enums"]["campaign_objective"]
+          results: Json
+          start_date: string | null
+          status: Database["public"]["Enums"]["campaign_status"]
+          updated_at: string
+          user_id: string
+          video_url: string | null
+        }
+        SetofOptions: {
+          from: "*"
+          to: "campaigns"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
+      fund_campaign: {
+        Args: { _campaign_id: string }
+        Returns: {
+          amount: number
+          balance_after: number
+          campaign_id: string | null
+          client_id: string
+          created_at: string
+          created_by: string | null
+          entry_type: Database["public"]["Enums"]["wallet_entry_type"]
+          id: string
+          note: string | null
+          user_id: string
+          wallet_id: string
+        }
+        SetofOptions: {
+          from: "*"
+          to: "wallet_ledger"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
       has_role: {
         Args: {
           _role: Database["public"]["Enums"]["app_role"]
           _user_id: string
         }
         Returns: boolean
+      }
+      refund_campaign: {
+        Args: { _campaign_id: string; _cancel?: boolean; _note?: string }
+        Returns: {
+          amount: number
+          balance_after: number
+          campaign_id: string | null
+          client_id: string
+          created_at: string
+          created_by: string | null
+          entry_type: Database["public"]["Enums"]["wallet_entry_type"]
+          id: string
+          note: string | null
+          user_id: string
+          wallet_id: string
+        }
+        SetofOptions: {
+          from: "*"
+          to: "wallet_ledger"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
+      wallet_adjust: {
+        Args: { _amount: number; _client_id: string; _note?: string }
+        Returns: {
+          amount: number
+          balance_after: number
+          campaign_id: string | null
+          client_id: string
+          created_at: string
+          created_by: string | null
+          entry_type: Database["public"]["Enums"]["wallet_entry_type"]
+          id: string
+          note: string | null
+          user_id: string
+          wallet_id: string
+        }
+        SetofOptions: {
+          from: "*"
+          to: "wallet_ledger"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
+      wallet_credit: {
+        Args: { _amount: number; _client_id: string; _note?: string }
+        Returns: {
+          amount: number
+          balance_after: number
+          campaign_id: string | null
+          client_id: string
+          created_at: string
+          created_by: string | null
+          entry_type: Database["public"]["Enums"]["wallet_entry_type"]
+          id: string
+          note: string | null
+          user_id: string
+          wallet_id: string
+        }
+        SetofOptions: {
+          from: "*"
+          to: "wallet_ledger"
+          isOneToOne: true
+          isSetofReturn: false
+        }
       }
     }
     Enums: {
@@ -361,8 +614,17 @@ export type Database = {
         | "conversion"
         | "sales"
         | "awareness"
-      campaign_status: "draft" | "running" | "completed"
+      campaign_status:
+        | "draft"
+        | "running"
+        | "completed"
+        | "pending_payment"
+        | "funded"
+        | "active"
+        | "cancelled"
+        | "refunded"
       social_platform: "instagram" | "tiktok" | "youtube" | "facebook"
+      wallet_entry_type: "credit" | "debit" | "refund" | "adjustment"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -500,8 +762,18 @@ export const Constants = {
         "sales",
         "awareness",
       ],
-      campaign_status: ["draft", "running", "completed"],
+      campaign_status: [
+        "draft",
+        "running",
+        "completed",
+        "pending_payment",
+        "funded",
+        "active",
+        "cancelled",
+        "refunded",
+      ],
       social_platform: ["instagram", "tiktok", "youtube", "facebook"],
+      wallet_entry_type: ["credit", "debit", "refund", "adjustment"],
     },
   },
 } as const

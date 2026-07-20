@@ -35,17 +35,20 @@ function rowToCampaign(r: Row): Campaign {
   return {
     id: r.id,
     clientName: r.clients?.name ?? r.client_name_legacy ?? "",
+    clientId: r.client_id,
     campaignName: r.campaign_name,
     videoUrl: r.video_url ?? "",
     startDate: r.start_date ?? "",
     endDate: r.end_date ?? "",
     dailyBudget: toNum(r.daily_budget) ?? 0,
+    budget: toNum((r as unknown as { budget?: string | number }).budget) ?? 0,
     days: r.days,
     objective: r.objective,
     avgProductValue: toNum(r.avg_product_value),
     avgUpsellValue: toNum(r.avg_upsell_value),
     avgCrossSellValue: toNum(r.avg_cross_sell_value),
     results: r.results ?? {},
+    status: r.status,
     createdAt: r.created_at,
     updatedAt: r.updated_at,
   };
@@ -55,11 +58,13 @@ const objective = z.enum(["views", "engagement", "traffic", "conversion", "sales
 
 const setupSchema = z.object({
   clientName: z.string().min(1).max(120),
+  clientId: z.string().uuid().nullish(),
   campaignName: z.string().min(1).max(160),
   videoUrl: z.string().max(500).optional().default(""),
   startDate: z.string().optional().default(""),
   endDate: z.string().optional().default(""),
   dailyBudget: z.number().min(0),
+  budget: z.number().min(0).optional().default(0),
   days: z.number().int().min(0),
   objective,
   avgProductValue: z.number().min(0).optional(),
@@ -89,12 +94,14 @@ export const createCampaignFn = createServerFn({ method: "POST" })
     const s = data.setup;
     const insert = {
       user_id: context.userId,
+      client_id: s.clientId ?? null,
       client_name_legacy: s.clientName,
       campaign_name: s.campaignName,
       video_url: s.videoUrl || null,
       start_date: s.startDate || null,
       end_date: s.endDate || null,
       daily_budget: s.dailyBudget,
+      budget: s.budget ?? 0,
       days: s.days,
       objective: s.objective,
       avg_product_value: s.avgProductValue ?? null,
@@ -120,11 +127,14 @@ export const updateCampaignFn = createServerFn({ method: "POST" })
     const p = data.patch as Partial<CampaignSetup> & { results?: CampaignResults };
     const patch: Record<string, unknown> = {};
     if (p.clientName !== undefined) patch.client_name_legacy = p.clientName;
+    if ((p as { clientId?: string | null }).clientId !== undefined)
+      patch.client_id = (p as { clientId?: string | null }).clientId ?? null;
     if (p.campaignName !== undefined) patch.campaign_name = p.campaignName;
     if (p.videoUrl !== undefined) patch.video_url = p.videoUrl || null;
     if (p.startDate !== undefined) patch.start_date = p.startDate || null;
     if (p.endDate !== undefined) patch.end_date = p.endDate || null;
     if (p.dailyBudget !== undefined) patch.daily_budget = p.dailyBudget;
+    if (p.budget !== undefined) patch.budget = p.budget;
     if (p.days !== undefined) patch.days = p.days;
     if (p.objective !== undefined) patch.objective = p.objective;
     if (p.avgProductValue !== undefined) patch.avg_product_value = p.avgProductValue ?? null;
@@ -171,12 +181,14 @@ export const bulkImportCampaignsFn = createServerFn({ method: "POST" })
     if (!data.items.length) return { inserted: 0 };
     const rows = data.items.map((s) => ({
       user_id: context.userId,
+      client_id: s.clientId ?? null,
       client_name_legacy: s.clientName,
       campaign_name: s.campaignName,
       video_url: s.videoUrl || null,
       start_date: s.startDate || null,
       end_date: s.endDate || null,
       daily_budget: s.dailyBudget,
+      budget: s.budget ?? 0,
       days: s.days,
       objective: s.objective,
       avg_product_value: s.avgProductValue ?? null,

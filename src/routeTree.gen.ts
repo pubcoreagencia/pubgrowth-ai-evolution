@@ -18,6 +18,7 @@ import { Route as AuthenticatedCampaignsIndexRouteImport } from './routes/_authe
 import { Route as AuthenticatedClientsIdRouteImport } from './routes/_authenticated/clients.$id'
 import { Route as AuthenticatedCampaignsNewRouteImport } from './routes/_authenticated/campaigns.new'
 import { Route as AuthenticatedCampaignsIdRouteImport } from './routes/_authenticated/campaigns.$id'
+import { Route as AuthenticatedClientsIdWalletRouteImport } from './routes/_authenticated/clients.$id.wallet'
 import { Route as AuthenticatedClientsIdSocialProfileIdRouteImport } from './routes/_authenticated/clients.$id.social.$profileId'
 
 const AuthRoute = AuthRouteImport.update({
@@ -67,6 +68,12 @@ const AuthenticatedCampaignsIdRoute =
     path: '/campaigns/$id',
     getParentRoute: () => AuthenticatedRouteRoute,
   } as any)
+const AuthenticatedClientsIdWalletRoute =
+  AuthenticatedClientsIdWalletRouteImport.update({
+    id: '/wallet',
+    path: '/wallet',
+    getParentRoute: () => AuthenticatedClientsIdRoute,
+  } as any)
 const AuthenticatedClientsIdSocialProfileIdRoute =
   AuthenticatedClientsIdSocialProfileIdRouteImport.update({
     id: '/social/$profileId',
@@ -83,6 +90,7 @@ export interface FileRoutesByFullPath {
   '/campaigns/new': typeof AuthenticatedCampaignsNewRoute
   '/clients/$id': typeof AuthenticatedClientsIdRouteWithChildren
   '/campaigns/': typeof AuthenticatedCampaignsIndexRoute
+  '/clients/$id/wallet': typeof AuthenticatedClientsIdWalletRoute
   '/clients/$id/social/$profileId': typeof AuthenticatedClientsIdSocialProfileIdRoute
 }
 export interface FileRoutesByTo {
@@ -94,6 +102,7 @@ export interface FileRoutesByTo {
   '/campaigns/new': typeof AuthenticatedCampaignsNewRoute
   '/clients/$id': typeof AuthenticatedClientsIdRouteWithChildren
   '/campaigns': typeof AuthenticatedCampaignsIndexRoute
+  '/clients/$id/wallet': typeof AuthenticatedClientsIdWalletRoute
   '/clients/$id/social/$profileId': typeof AuthenticatedClientsIdSocialProfileIdRoute
 }
 export interface FileRoutesById {
@@ -107,6 +116,7 @@ export interface FileRoutesById {
   '/_authenticated/campaigns/new': typeof AuthenticatedCampaignsNewRoute
   '/_authenticated/clients/$id': typeof AuthenticatedClientsIdRouteWithChildren
   '/_authenticated/campaigns/': typeof AuthenticatedCampaignsIndexRoute
+  '/_authenticated/clients/$id/wallet': typeof AuthenticatedClientsIdWalletRoute
   '/_authenticated/clients/$id/social/$profileId': typeof AuthenticatedClientsIdSocialProfileIdRoute
 }
 export interface FileRouteTypes {
@@ -120,6 +130,7 @@ export interface FileRouteTypes {
     | '/campaigns/new'
     | '/clients/$id'
     | '/campaigns/'
+    | '/clients/$id/wallet'
     | '/clients/$id/social/$profileId'
   fileRoutesByTo: FileRoutesByTo
   to:
@@ -131,6 +142,7 @@ export interface FileRouteTypes {
     | '/campaigns/new'
     | '/clients/$id'
     | '/campaigns'
+    | '/clients/$id/wallet'
     | '/clients/$id/social/$profileId'
   id:
     | '__root__'
@@ -143,6 +155,7 @@ export interface FileRouteTypes {
     | '/_authenticated/campaigns/new'
     | '/_authenticated/clients/$id'
     | '/_authenticated/campaigns/'
+    | '/_authenticated/clients/$id/wallet'
     | '/_authenticated/clients/$id/social/$profileId'
   fileRoutesById: FileRoutesById
 }
@@ -216,6 +229,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedCampaignsIdRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/_authenticated/clients/$id/wallet': {
+      id: '/_authenticated/clients/$id/wallet'
+      path: '/wallet'
+      fullPath: '/clients/$id/wallet'
+      preLoaderRoute: typeof AuthenticatedClientsIdWalletRouteImport
+      parentRoute: typeof AuthenticatedClientsIdRoute
+    }
     '/_authenticated/clients/$id/social/$profileId': {
       id: '/_authenticated/clients/$id/social/$profileId'
       path: '/social/$profileId'
@@ -227,11 +247,13 @@ declare module '@tanstack/react-router' {
 }
 
 interface AuthenticatedClientsIdRouteChildren {
+  AuthenticatedClientsIdWalletRoute: typeof AuthenticatedClientsIdWalletRoute
   AuthenticatedClientsIdSocialProfileIdRoute: typeof AuthenticatedClientsIdSocialProfileIdRoute
 }
 
 const AuthenticatedClientsIdRouteChildren: AuthenticatedClientsIdRouteChildren =
   {
+    AuthenticatedClientsIdWalletRoute: AuthenticatedClientsIdWalletRoute,
     AuthenticatedClientsIdSocialProfileIdRoute:
       AuthenticatedClientsIdSocialProfileIdRoute,
   }
@@ -280,13 +302,3 @@ const rootRouteChildren: RootRouteChildren = {
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
-
-import type { getRouter } from './router.tsx'
-import type { startInstance } from './start.ts'
-declare module '@tanstack/react-start' {
-  interface Register {
-    ssr: true
-    router: Awaited<ReturnType<typeof getRouter>>
-    config: Awaited<ReturnType<typeof startInstance.getOptions>>
-  }
-}

@@ -8,11 +8,13 @@ export type CampaignObjective =
 
 export interface CampaignSetup {
   clientName: string;
+  clientId?: string | null;
   campaignName: string;
   videoUrl: string;
   startDate: string;
   endDate: string;
   dailyBudget: number;
+  budget?: number;
   days: number;
   objective: CampaignObjective;
   avgProductValue?: number;
@@ -38,4 +40,13 @@ export interface Campaign extends CampaignSetup {
   createdAt: string;
   updatedAt: string;
   results: CampaignResults;
+  status:
+    | "draft"
+    | "pending_payment"
+    | "funded"
+    | "active"
+    | "running"
+    | "completed"
+    | "cancelled"
+    | "refunded";
 }
