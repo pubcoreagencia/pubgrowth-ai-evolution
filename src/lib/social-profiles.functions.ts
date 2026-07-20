@@ -128,7 +128,13 @@ export const updateSocialProfileFn = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((input: z.input<typeof profileUpdateSchema>) => profileUpdateSchema.parse(input))
   .handler(async ({ context, data }) => {
-    const patch: Record<string, unknown> = {};
+    const patch: {
+      profile_name?: string;
+      username?: string;
+      profile_url?: string | null;
+      avatar_url?: string | null;
+      is_active?: boolean;
+    } = {};
     if (data.profileName !== undefined) patch.profile_name = data.profileName;
     if (data.username !== undefined) patch.username = data.username;
     if (data.profileUrl !== undefined) patch.profile_url = data.profileUrl;
