@@ -100,7 +100,7 @@ export const creditWalletFn = createServerFn({ method: "POST" })
     const { error } = await context.supabase.rpc("wallet_credit", {
       _client_id: data.clientId,
       _amount: data.amount,
-      _note: data.note ?? null,
+      _note: data.note ?? undefined,
     });
     if (error) throw new Error(error.message);
     return { ok: true };
@@ -121,7 +121,7 @@ export const adjustWalletFn = createServerFn({ method: "POST" })
     const { error } = await context.supabase.rpc("wallet_adjust", {
       _client_id: data.clientId,
       _amount: data.amount,
-      _note: data.note ?? null,
+      _note: data.note ?? undefined,
     });
     if (error) throw new Error(error.message);
     return { ok: true };
@@ -155,7 +155,7 @@ export const refundCampaignFn = createServerFn({ method: "POST" })
     const { error } = await context.supabase.rpc("refund_campaign", {
       _campaign_id: data.campaignId,
       _cancel: data.cancel ?? false,
-      _note: data.note ?? null,
+      _note: data.note ?? undefined,
     });
     if (error) throw new Error(error.message);
     return { ok: true };
