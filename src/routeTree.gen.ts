@@ -18,6 +18,7 @@ import { Route as AuthenticatedCampaignsIndexRouteImport } from './routes/_authe
 import { Route as AuthenticatedClientsIdRouteImport } from './routes/_authenticated/clients.$id'
 import { Route as AuthenticatedCampaignsNewRouteImport } from './routes/_authenticated/campaigns.new'
 import { Route as AuthenticatedCampaignsIdRouteImport } from './routes/_authenticated/campaigns.$id'
+import { Route as AuthenticatedClientsIdSocialProfileIdRouteImport } from './routes/_authenticated/clients.$id.social.$profileId'
 
 const AuthRoute = AuthRouteImport.update({
   id: '/auth',
@@ -66,6 +67,12 @@ const AuthenticatedCampaignsIdRoute =
     path: '/campaigns/$id',
     getParentRoute: () => AuthenticatedRouteRoute,
   } as any)
+const AuthenticatedClientsIdSocialProfileIdRoute =
+  AuthenticatedClientsIdSocialProfileIdRouteImport.update({
+    id: '/social/$profileId',
+    path: '/social/$profileId',
+    getParentRoute: () => AuthenticatedClientsIdRoute,
+  } as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof AuthenticatedIndexRoute
@@ -74,8 +81,9 @@ export interface FileRoutesByFullPath {
   '/settings': typeof AuthenticatedSettingsRoute
   '/campaigns/$id': typeof AuthenticatedCampaignsIdRoute
   '/campaigns/new': typeof AuthenticatedCampaignsNewRoute
-  '/clients/$id': typeof AuthenticatedClientsIdRoute
+  '/clients/$id': typeof AuthenticatedClientsIdRouteWithChildren
   '/campaigns/': typeof AuthenticatedCampaignsIndexRoute
+  '/clients/$id/social/$profileId': typeof AuthenticatedClientsIdSocialProfileIdRoute
 }
 export interface FileRoutesByTo {
   '/auth': typeof AuthRoute
@@ -84,8 +92,9 @@ export interface FileRoutesByTo {
   '/': typeof AuthenticatedIndexRoute
   '/campaigns/$id': typeof AuthenticatedCampaignsIdRoute
   '/campaigns/new': typeof AuthenticatedCampaignsNewRoute
-  '/clients/$id': typeof AuthenticatedClientsIdRoute
+  '/clients/$id': typeof AuthenticatedClientsIdRouteWithChildren
   '/campaigns': typeof AuthenticatedCampaignsIndexRoute
+  '/clients/$id/social/$profileId': typeof AuthenticatedClientsIdSocialProfileIdRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -96,8 +105,9 @@ export interface FileRoutesById {
   '/_authenticated/': typeof AuthenticatedIndexRoute
   '/_authenticated/campaigns/$id': typeof AuthenticatedCampaignsIdRoute
   '/_authenticated/campaigns/new': typeof AuthenticatedCampaignsNewRoute
-  '/_authenticated/clients/$id': typeof AuthenticatedClientsIdRoute
+  '/_authenticated/clients/$id': typeof AuthenticatedClientsIdRouteWithChildren
   '/_authenticated/campaigns/': typeof AuthenticatedCampaignsIndexRoute
+  '/_authenticated/clients/$id/social/$profileId': typeof AuthenticatedClientsIdSocialProfileIdRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -110,6 +120,7 @@ export interface FileRouteTypes {
     | '/campaigns/new'
     | '/clients/$id'
     | '/campaigns/'
+    | '/clients/$id/social/$profileId'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/auth'
@@ -120,6 +131,7 @@ export interface FileRouteTypes {
     | '/campaigns/new'
     | '/clients/$id'
     | '/campaigns'
+    | '/clients/$id/social/$profileId'
   id:
     | '__root__'
     | '/_authenticated'
@@ -131,6 +143,7 @@ export interface FileRouteTypes {
     | '/_authenticated/campaigns/new'
     | '/_authenticated/clients/$id'
     | '/_authenticated/campaigns/'
+    | '/_authenticated/clients/$id/social/$profileId'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -203,15 +216,37 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedCampaignsIdRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/_authenticated/clients/$id/social/$profileId': {
+      id: '/_authenticated/clients/$id/social/$profileId'
+      path: '/social/$profileId'
+      fullPath: '/clients/$id/social/$profileId'
+      preLoaderRoute: typeof AuthenticatedClientsIdSocialProfileIdRouteImport
+      parentRoute: typeof AuthenticatedClientsIdRoute
+    }
   }
 }
 
+interface AuthenticatedClientsIdRouteChildren {
+  AuthenticatedClientsIdSocialProfileIdRoute: typeof AuthenticatedClientsIdSocialProfileIdRoute
+}
+
+const AuthenticatedClientsIdRouteChildren: AuthenticatedClientsIdRouteChildren =
+  {
+    AuthenticatedClientsIdSocialProfileIdRoute:
+      AuthenticatedClientsIdSocialProfileIdRoute,
+  }
+
+const AuthenticatedClientsIdRouteWithChildren =
+  AuthenticatedClientsIdRoute._addFileChildren(
+    AuthenticatedClientsIdRouteChildren,
+  )
+
 interface AuthenticatedClientsRouteChildren {
-  AuthenticatedClientsIdRoute: typeof AuthenticatedClientsIdRoute
+  AuthenticatedClientsIdRoute: typeof AuthenticatedClientsIdRouteWithChildren
 }
 
 const AuthenticatedClientsRouteChildren: AuthenticatedClientsRouteChildren = {
-  AuthenticatedClientsIdRoute: AuthenticatedClientsIdRoute,
+  AuthenticatedClientsIdRoute: AuthenticatedClientsIdRouteWithChildren,
 }
 
 const AuthenticatedClientsRouteWithChildren =
