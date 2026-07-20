@@ -33,7 +33,7 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import { toast } from "sonner";
-import { ArrowLeft, PlusCircle, Trash2, LineChart, Archive, ArchiveRestore } from "lucide-react";
+import { ArrowLeft, PlusCircle, Trash2, LineChart, Archive, ArchiveRestore, Wallet } from "lucide-react";
 
 export const Route = createFileRoute("/_authenticated/clients/$id")({
   component: ClientDetailPage,
@@ -140,7 +140,13 @@ function ClientDetailPage() {
           </p>
         </div>
 
-        <Dialog open={open} onOpenChange={setOpen}>
+        <div className="flex flex-wrap gap-2">
+          <Button asChild variant="outline" className="gap-2">
+            <Link to="/clients/$id/wallet" params={{ id }}>
+              <Wallet className="h-4 w-4" /> Carteira
+            </Link>
+          </Button>
+          <Dialog open={open} onOpenChange={setOpen}>
           <DialogTrigger asChild>
             <Button className="gap-2">
               <PlusCircle className="h-4 w-4" /> Adicionar perfil
@@ -201,7 +207,8 @@ function ClientDetailPage() {
               </DialogFooter>
             </form>
           </DialogContent>
-        </Dialog>
+          </Dialog>
+        </div>
       </div>
 
       <section className="mt-8">
