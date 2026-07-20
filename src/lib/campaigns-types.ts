@@ -14,7 +14,7 @@ export interface CampaignSetup {
   startDate: string;
   endDate: string;
   dailyBudget: number;
-  budget: number;
+  budget?: number;
   days: number;
   objective: CampaignObjective;
   avgProductValue?: number;
