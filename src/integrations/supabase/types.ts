@@ -14,16 +14,242 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      campaigns: {
+        Row: {
+          avg_cross_sell_value: number | null
+          avg_product_value: number | null
+          avg_upsell_value: number | null
+          campaign_name: string
+          client_id: string | null
+          client_name_legacy: string | null
+          created_at: string
+          daily_budget: number
+          days: number
+          end_date: string | null
+          id: string
+          objective: Database["public"]["Enums"]["campaign_objective"]
+          results: Json
+          start_date: string | null
+          status: Database["public"]["Enums"]["campaign_status"]
+          updated_at: string
+          user_id: string
+          video_url: string | null
+        }
+        Insert: {
+          avg_cross_sell_value?: number | null
+          avg_product_value?: number | null
+          avg_upsell_value?: number | null
+          campaign_name: string
+          client_id?: string | null
+          client_name_legacy?: string | null
+          created_at?: string
+          daily_budget?: number
+          days?: number
+          end_date?: string | null
+          id?: string
+          objective?: Database["public"]["Enums"]["campaign_objective"]
+          results?: Json
+          start_date?: string | null
+          status?: Database["public"]["Enums"]["campaign_status"]
+          updated_at?: string
+          user_id: string
+          video_url?: string | null
+        }
+        Update: {
+          avg_cross_sell_value?: number | null
+          avg_product_value?: number | null
+          avg_upsell_value?: number | null
+          campaign_name?: string
+          client_id?: string | null
+          client_name_legacy?: string | null
+          created_at?: string
+          daily_budget?: number
+          days?: number
+          end_date?: string | null
+          id?: string
+          objective?: Database["public"]["Enums"]["campaign_objective"]
+          results?: Json
+          start_date?: string | null
+          status?: Database["public"]["Enums"]["campaign_status"]
+          updated_at?: string
+          user_id?: string
+          video_url?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "campaigns_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "clients"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      clients: {
+        Row: {
+          company: string | null
+          created_at: string
+          id: string
+          name: string
+          notes: string | null
+          segment: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          company?: string | null
+          created_at?: string
+          id?: string
+          name: string
+          notes?: string | null
+          segment?: string | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          company?: string | null
+          created_at?: string
+          id?: string
+          name?: string
+          notes?: string | null
+          segment?: string | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      estimation_settings: {
+        Row: {
+          checkout_initiation_rate: number
+          created_at: string
+          cta_view_rate: number
+          offer_view_rate: number
+          recurring_customer_rate: number
+          remarketing_reach_rate: number
+          updated_at: string
+          user_id: string
+          views_share_of_impressions: number
+        }
+        Insert: {
+          checkout_initiation_rate?: number
+          created_at?: string
+          cta_view_rate?: number
+          offer_view_rate?: number
+          recurring_customer_rate?: number
+          remarketing_reach_rate?: number
+          updated_at?: string
+          user_id: string
+          views_share_of_impressions?: number
+        }
+        Update: {
+          checkout_initiation_rate?: number
+          created_at?: string
+          cta_view_rate?: number
+          offer_view_rate?: number
+          recurring_customer_rate?: number
+          remarketing_reach_rate?: number
+          updated_at?: string
+          user_id?: string
+          views_share_of_impressions?: number
+        }
+        Relationships: []
+      }
+      profiles: {
+        Row: {
+          avatar_url: string | null
+          created_at: string
+          full_name: string | null
+          id: string
+          updated_at: string
+        }
+        Insert: {
+          avatar_url?: string | null
+          created_at?: string
+          full_name?: string | null
+          id: string
+          updated_at?: string
+        }
+        Update: {
+          avatar_url?: string | null
+          created_at?: string
+          full_name?: string | null
+          id?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      subscriptions: {
+        Row: {
+          created_at: string
+          current_period_end: string | null
+          plan: Database["public"]["Enums"]["app_plan"]
+          status: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          current_period_end?: string | null
+          plan?: Database["public"]["Enums"]["app_plan"]
+          status?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          current_period_end?: string | null
+          plan?: Database["public"]["Enums"]["app_plan"]
+          status?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      user_roles: {
+        Row: {
+          created_at: string
+          id: string
+          role: Database["public"]["Enums"]["app_role"]
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          role: Database["public"]["Enums"]["app_role"]
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          role?: Database["public"]["Enums"]["app_role"]
+          user_id?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      has_role: {
+        Args: {
+          _role: Database["public"]["Enums"]["app_role"]
+          _user_id: string
+        }
+        Returns: boolean
+      }
     }
     Enums: {
-      [_ in never]: never
+      app_plan: "free" | "pro" | "agency"
+      app_role: "admin" | "user"
+      campaign_objective:
+        | "views"
+        | "engagement"
+        | "traffic"
+        | "conversion"
+        | "sales"
+        | "awareness"
+      campaign_status: "draft" | "running" | "completed"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -150,6 +376,18 @@ export type CompositeTypes<
 
 export const Constants = {
   public: {
-    Enums: {},
+    Enums: {
+      app_plan: ["free", "pro", "agency"],
+      app_role: ["admin", "user"],
+      campaign_objective: [
+        "views",
+        "engagement",
+        "traffic",
+        "conversion",
+        "sales",
+        "awareness",
+      ],
+      campaign_status: ["draft", "running", "completed"],
+    },
   },
 } as const
