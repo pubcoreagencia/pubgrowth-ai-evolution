@@ -88,6 +88,38 @@ export type Database = {
           },
         ]
       }
+      client_users: {
+        Row: {
+          client_id: string
+          created_at: string
+          id: string
+          invited_by: string | null
+          user_id: string
+        }
+        Insert: {
+          client_id: string
+          created_at?: string
+          id?: string
+          invited_by?: string | null
+          user_id: string
+        }
+        Update: {
+          client_id?: string
+          created_at?: string
+          id?: string
+          invited_by?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "client_users_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "clients"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       client_wallets: {
         Row: {
           balance: number
@@ -508,6 +540,7 @@ export type Database = {
           isSetofReturn: false
         }
       }
+      current_client_id: { Args: never; Returns: string }
       fund_campaign: {
         Args: { _campaign_id: string }
         Returns: {
@@ -606,7 +639,7 @@ export type Database = {
     }
     Enums: {
       app_plan: "free" | "pro" | "agency"
-      app_role: "admin" | "user"
+      app_role: "admin" | "user" | "client"
       campaign_objective:
         | "views"
         | "engagement"
@@ -753,7 +786,7 @@ export const Constants = {
   public: {
     Enums: {
       app_plan: ["free", "pro", "agency"],
-      app_role: ["admin", "user"],
+      app_role: ["admin", "user", "client"],
       campaign_objective: [
         "views",
         "engagement",

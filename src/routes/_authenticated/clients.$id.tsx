@@ -33,7 +33,12 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import { toast } from "sonner";
-import { ArrowLeft, PlusCircle, Trash2, LineChart, Archive, ArchiveRestore, Wallet } from "lucide-react";
+import { ArrowLeft, PlusCircle, Trash2, LineChart, Archive, ArchiveRestore, Wallet, UserPlus, ShieldOff, Mail } from "lucide-react";
+import {
+  getClientUserFn,
+  inviteClientUserFn,
+  revokeClientUserFn,
+} from "@/lib/client-portal.functions";
 
 export const Route = createFileRoute("/_authenticated/clients/$id")({
   component: ClientDetailPage,
@@ -119,6 +124,42 @@ function ClientDetailPage() {
 
   const active = profiles.filter((p) => p.isActive);
   const archived = profiles.filter((p) => !p.isActive);
+
+  const { data: clientAccess } = useQuery({
+    queryKey: ["client-access", id],
+    queryFn: () => getClientUserFn({ data: { clientId: id } }),
+  });
+  const [inviteEmail, setInviteEmail] = useState("");
+  const [inviting, setInviting] = useState(false);
+  const invalidateAccess = () =>
+    qc.invalidateQueries({ queryKey: ["client-access", id] });
+
+  const onInvite = async (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    if (!inviteEmail.trim()) return;
+    setInviting(true);
+    try {
+      await inviteClientUserFn({ data: { clientId: id, email: inviteEmail.trim() } });
+      toast.success("Convite enviado ao cliente");
+      setInviteEmail("");
+      invalidateAccess();
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Falha ao convidar");
+    } finally {
+      setInviting(false);
+    }
+  };
+
+  const onRevoke = async () => {
+    if (!confirm("Revogar o acesso deste cliente ao portal?")) return;
+    try {
+      await revokeClientUserFn({ data: { clientId: id } });
+      toast.success("Acesso revogado");
+      invalidateAccess();
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Erro");
+    }
+  };
 
   return (
     <div className="mx-auto max-w-6xl px-4 py-8 md:py-10">
@@ -251,6 +292,53 @@ function ClientDetailPage() {
           </div>
         </section>
       )}
+
+      <section className="mt-10">
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2 text-base">
+              <UserPlus className="h-4 w-4" /> Acesso ao portal do cliente
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            {clientAccess ? (
+              <div className="flex flex-wrap items-center justify-between gap-3">
+                <div className="flex items-center gap-2 text-sm">
+                  <Mail className="h-4 w-4 text-muted-foreground" />
+                  <span className="font-medium">{clientAccess.email}</span>
+                  <Badge variant="outline" className="border-emerald-500/50 text-emerald-600 dark:text-emerald-400">
+                    Vinculado
+                  </Badge>
+                </div>
+                <Button variant="ghost" size="sm" className="gap-1.5 text-destructive" onClick={onRevoke}>
+                  <ShieldOff className="h-4 w-4" /> Revogar
+                </Button>
+              </div>
+            ) : (
+              <form onSubmit={onInvite} className="flex flex-wrap items-end gap-3">
+                <div className="flex-1 min-w-[220px] space-y-1.5">
+                  <Label htmlFor="invite-email">E-mail do cliente</Label>
+                  <Input
+                    id="invite-email"
+                    type="email"
+                    value={inviteEmail}
+                    onChange={(e) => setInviteEmail(e.target.value)}
+                    placeholder="cliente@empresa.com"
+                    required
+                  />
+                </div>
+                <Button type="submit" disabled={inviting} className="gap-1.5">
+                  <UserPlus className="h-4 w-4" />
+                  {inviting ? "Convidando…" : "Convidar cliente"}
+                </Button>
+                <p className="w-full text-xs text-muted-foreground">
+                  O cliente receberá um e-mail para definir a senha e acessará apenas os dados desta conta.
+                </p>
+              </form>
+            )}
+          </CardContent>
+        </Card>
+      </section>
     </div>
   );
 }

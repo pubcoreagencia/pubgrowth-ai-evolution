@@ -10,7 +10,9 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as AuthRouteImport } from './routes/auth'
+import { Route as ClientPortalRouteRouteImport } from './routes/client-portal/route'
 import { Route as AuthenticatedRouteRouteImport } from './routes/_authenticated/route'
+import { Route as ClientPortalIndexRouteImport } from './routes/client-portal/index'
 import { Route as AuthenticatedIndexRouteImport } from './routes/_authenticated/index'
 import { Route as AuthenticatedSettingsRouteImport } from './routes/_authenticated/settings'
 import { Route as AuthenticatedClientsRouteImport } from './routes/_authenticated/clients'
@@ -26,9 +28,19 @@ const AuthRoute = AuthRouteImport.update({
   path: '/auth',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ClientPortalRouteRoute = ClientPortalRouteRouteImport.update({
+  id: '/client-portal',
+  path: '/client-portal',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const AuthenticatedRouteRoute = AuthenticatedRouteRouteImport.update({
   id: '/_authenticated',
   getParentRoute: () => rootRouteImport,
+} as any)
+const ClientPortalIndexRoute = ClientPortalIndexRouteImport.update({
+  id: '/',
+  path: '/',
+  getParentRoute: () => ClientPortalRouteRoute,
 } as any)
 const AuthenticatedIndexRoute = AuthenticatedIndexRouteImport.update({
   id: '/',
@@ -83,9 +95,11 @@ const AuthenticatedClientsIdSocialProfileIdRoute =
 
 export interface FileRoutesByFullPath {
   '/': typeof AuthenticatedIndexRoute
+  '/client-portal': typeof ClientPortalRouteRouteWithChildren
   '/auth': typeof AuthRoute
   '/clients': typeof AuthenticatedClientsRouteWithChildren
   '/settings': typeof AuthenticatedSettingsRoute
+  '/client-portal/': typeof ClientPortalIndexRoute
   '/campaigns/$id': typeof AuthenticatedCampaignsIdRoute
   '/campaigns/new': typeof AuthenticatedCampaignsNewRoute
   '/clients/$id': typeof AuthenticatedClientsIdRouteWithChildren
@@ -98,6 +112,7 @@ export interface FileRoutesByTo {
   '/clients': typeof AuthenticatedClientsRouteWithChildren
   '/settings': typeof AuthenticatedSettingsRoute
   '/': typeof AuthenticatedIndexRoute
+  '/client-portal': typeof ClientPortalIndexRoute
   '/campaigns/$id': typeof AuthenticatedCampaignsIdRoute
   '/campaigns/new': typeof AuthenticatedCampaignsNewRoute
   '/clients/$id': typeof AuthenticatedClientsIdRouteWithChildren
@@ -108,10 +123,12 @@ export interface FileRoutesByTo {
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/_authenticated': typeof AuthenticatedRouteRouteWithChildren
+  '/client-portal': typeof ClientPortalRouteRouteWithChildren
   '/auth': typeof AuthRoute
   '/_authenticated/clients': typeof AuthenticatedClientsRouteWithChildren
   '/_authenticated/settings': typeof AuthenticatedSettingsRoute
   '/_authenticated/': typeof AuthenticatedIndexRoute
+  '/client-portal/': typeof ClientPortalIndexRoute
   '/_authenticated/campaigns/$id': typeof AuthenticatedCampaignsIdRoute
   '/_authenticated/campaigns/new': typeof AuthenticatedCampaignsNewRoute
   '/_authenticated/clients/$id': typeof AuthenticatedClientsIdRouteWithChildren
@@ -123,9 +140,11 @@ export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
     | '/'
+    | '/client-portal'
     | '/auth'
     | '/clients'
     | '/settings'
+    | '/client-portal/'
     | '/campaigns/$id'
     | '/campaigns/new'
     | '/clients/$id'
@@ -138,6 +157,7 @@ export interface FileRouteTypes {
     | '/clients'
     | '/settings'
     | '/'
+    | '/client-portal'
     | '/campaigns/$id'
     | '/campaigns/new'
     | '/clients/$id'
@@ -147,10 +167,12 @@ export interface FileRouteTypes {
   id:
     | '__root__'
     | '/_authenticated'
+    | '/client-portal'
     | '/auth'
     | '/_authenticated/clients'
     | '/_authenticated/settings'
     | '/_authenticated/'
+    | '/client-portal/'
     | '/_authenticated/campaigns/$id'
     | '/_authenticated/campaigns/new'
     | '/_authenticated/clients/$id'
@@ -161,6 +183,7 @@ export interface FileRouteTypes {
 }
 export interface RootRouteChildren {
   AuthenticatedRouteRoute: typeof AuthenticatedRouteRouteWithChildren
+  ClientPortalRouteRoute: typeof ClientPortalRouteRouteWithChildren
   AuthRoute: typeof AuthRoute
 }
 
@@ -173,12 +196,26 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/client-portal': {
+      id: '/client-portal'
+      path: '/client-portal'
+      fullPath: '/client-portal'
+      preLoaderRoute: typeof ClientPortalRouteRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/_authenticated': {
       id: '/_authenticated'
       path: ''
       fullPath: '/'
       preLoaderRoute: typeof AuthenticatedRouteRouteImport
       parentRoute: typeof rootRouteImport
+    }
+    '/client-portal/': {
+      id: '/client-portal/'
+      path: '/'
+      fullPath: '/client-portal/'
+      preLoaderRoute: typeof ClientPortalIndexRouteImport
+      parentRoute: typeof ClientPortalRouteRoute
     }
     '/_authenticated/': {
       id: '/_authenticated/'
@@ -295,8 +332,20 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
 const AuthenticatedRouteRouteWithChildren =
   AuthenticatedRouteRoute._addFileChildren(AuthenticatedRouteRouteChildren)
 
+interface ClientPortalRouteRouteChildren {
+  ClientPortalIndexRoute: typeof ClientPortalIndexRoute
+}
+
+const ClientPortalRouteRouteChildren: ClientPortalRouteRouteChildren = {
+  ClientPortalIndexRoute: ClientPortalIndexRoute,
+}
+
+const ClientPortalRouteRouteWithChildren =
+  ClientPortalRouteRoute._addFileChildren(ClientPortalRouteRouteChildren)
+
 const rootRouteChildren: RootRouteChildren = {
   AuthenticatedRouteRoute: AuthenticatedRouteRouteWithChildren,
+  ClientPortalRouteRoute: ClientPortalRouteRouteWithChildren,
   AuthRoute: AuthRoute,
 }
 export const routeTree = rootRouteImport
