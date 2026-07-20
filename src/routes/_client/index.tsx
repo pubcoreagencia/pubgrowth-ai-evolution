@@ -142,25 +142,25 @@ function ClientPortalPage() {
         <StatCard
           title="Campanhas ativas"
           value={int(activeCampaigns.length)}
-          icon={Activity}
+          icon={<Activity className="h-4 w-4" />}
           hint={`${data.campaigns.length} no total`}
         />
         <StatCard
           title="Investido"
           value={brl(invested)}
-          icon={BarChart3}
+          icon={<BarChart3 className="h-4 w-4" />}
           hint="Verba consumida"
         />
         <StatCard
           title="Saldo disponível"
           value={data.wallet ? brl(data.wallet.balance) : "—"}
-          icon={WalletIcon}
+          icon={<WalletIcon className="h-4 w-4" />}
           hint={data.wallet ? "Em carteira" : "Sem carteira"}
         />
         <StatCard
           title="Crescimento (90d)"
           value={followersDelta.pct === null ? "—" : `${followersDelta.pct >= 0 ? "+" : ""}${followersDelta.pct.toFixed(1)}%`}
-          icon={TrendingUp}
+          icon={<TrendingUp className="h-4 w-4" />}
           hint={
             followersDelta.abs === null
               ? "Sem histórico"
