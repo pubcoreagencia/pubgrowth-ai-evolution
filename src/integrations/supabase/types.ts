@@ -606,7 +606,7 @@ export type Database = {
     }
     Enums: {
       app_plan: "free" | "pro" | "agency"
-      app_role: "admin" | "user"
+      app_role: "admin" | "user" | "client"
       campaign_objective:
         | "views"
         | "engagement"
@@ -753,7 +753,7 @@ export const Constants = {
   public: {
     Enums: {
       app_plan: ["free", "pro", "agency"],
-      app_role: ["admin", "user"],
+      app_role: ["admin", "user", "client"],
       campaign_objective: [
         "views",
         "engagement",
