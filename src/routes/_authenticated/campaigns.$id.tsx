@@ -610,3 +610,134 @@ function formatDate(iso: string): ReactNode {
   if (Number.isNaN(d.getTime())) return iso;
   return d.toLocaleDateString("pt-BR", { day: "2-digit", month: "short", year: "numeric" });
 }
+
+const statusMeta: Record<
+  string,
+  { label: string; className: string }
+> = {
+  draft: { label: "Rascunho", className: "border-muted-foreground/40 text-muted-foreground" },
+  pending_payment: { label: "Aguardando financiamento", className: "border-amber-500/50 text-amber-600 dark:text-amber-400" },
+  funded: { label: "Financiada", className: "border-blue-500/50 text-blue-600 dark:text-blue-400" },
+  active: { label: "Ativa", className: "border-emerald-500/50 text-emerald-600 dark:text-emerald-400" },
+  running: { label: "Em veiculação", className: "border-emerald-500/50 text-emerald-600 dark:text-emerald-400" },
+  completed: { label: "Concluída", className: "border-primary/40 text-primary" },
+  cancelled: { label: "Cancelada", className: "border-red-500/50 text-red-600 dark:text-red-400" },
+  refunded: { label: "Estornada", className: "border-red-500/50 text-red-600 dark:text-red-400" },
+};
+
+function FinancialControls({
+  campaign,
+}: {
+  campaign: import("@/lib/campaigns-types").Campaign;
+}) {
+  const qc = useQueryClient();
+  const meta = statusMeta[campaign.status] ?? statusMeta.draft;
+  const budget = campaign.budget ?? 0;
+
+  const invalidate = () => {
+    qc.invalidateQueries({ queryKey: ["campaigns"] });
+    if (campaign.clientId) {
+      qc.invalidateQueries({ queryKey: ["wallet", campaign.clientId] });
+      qc.invalidateQueries({ queryKey: ["wallet-ledger", campaign.clientId] });
+    }
+  };
+
+  const run = async (label: string, fn: () => Promise<unknown>) => {
+    try {
+      await fn();
+      toast.success(label);
+      invalidate();
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Erro");
+    }
+  };
+
+  const canFund =
+    (campaign.status === "draft" || campaign.status === "pending_payment") && budget > 0;
+  const canActivate = campaign.status === "funded";
+  const canComplete = campaign.status === "active" || campaign.status === "funded";
+  const canRefund = campaign.status === "funded" || campaign.status === "active";
+
+  return (
+    <div className="no-print mt-4 flex flex-wrap items-center justify-between gap-3 rounded-lg border border-border/60 bg-card/40 p-3">
+      <div className="flex flex-wrap items-center gap-3 text-xs">
+        <BadgeUI variant="outline" className={meta.className}>
+          {meta.label}
+        </BadgeUI>
+        <span className="text-muted-foreground">
+          Budget total:{" "}
+          <span className="font-medium text-foreground">
+            {budget > 0 ? formatBRL(budget) : "—"}
+          </span>
+        </span>
+        {campaign.clientId ? (
+          <Link
+            to="/clients/$id/wallet"
+            params={{ id: campaign.clientId }}
+            className="text-primary hover:underline"
+          >
+            Ver carteira do cliente
+          </Link>
+        ) : (
+          <span className="text-amber-600 dark:text-amber-400">
+            Vincule um cliente para habilitar carteira
+          </span>
+        )}
+      </div>
+      <div className="flex flex-wrap gap-2">
+        {canFund && campaign.clientId && (
+          <Button
+            size="sm"
+            onClick={() =>
+              run("Campanha financiada", () =>
+                fundCampaignFn({ data: { campaignId: campaign.id } }),
+              )
+            }
+          >
+            Financiar ({formatBRL(budget)})
+          </Button>
+        )}
+        {canActivate && (
+          <Button
+            size="sm"
+            variant="secondary"
+            onClick={() =>
+              run("Campanha ativada", () =>
+                activateCampaignFn({ data: { campaignId: campaign.id } }),
+              )
+            }
+          >
+            Ativar
+          </Button>
+        )}
+        {canComplete && (
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={() =>
+              run("Campanha concluída", () =>
+                completeCampaignFn({ data: { campaignId: campaign.id } }),
+              )
+            }
+          >
+            Concluir
+          </Button>
+        )}
+        {canRefund && (
+          <Button
+            size="sm"
+            variant="ghost"
+            onClick={() => {
+              if (!confirm("Estornar a verba desta campanha para a carteira?")) return;
+              run("Verba estornada", () =>
+                refundCampaignFn({ data: { campaignId: campaign.id, cancel: false } }),
+              );
+            }}
+          >
+            Estornar
+          </Button>
+        )}
+      </div>
+    </div>
+  );
+}
