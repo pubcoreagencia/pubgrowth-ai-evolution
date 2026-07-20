@@ -301,7 +301,7 @@ function ClientDetailPage() {
             </CardTitle>
           </CardHeader>
           <CardContent>
-            {clientAccess?.linked ? (
+            {clientAccess ? (
               <div className="flex flex-wrap items-center justify-between gap-3">
                 <div className="flex items-center gap-2 text-sm">
                   <Mail className="h-4 w-4 text-muted-foreground" />
