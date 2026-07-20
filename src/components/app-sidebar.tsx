@@ -1,6 +1,11 @@
-import { Link, useRouterState } from "@tanstack/react-router";
-import { BarChart3, LayoutDashboard, PlusCircle, Settings, Sparkles } from "lucide-react";
+import { Link, useRouterState, useNavigate } from "@tanstack/react-router";
+import { BarChart3, LayoutDashboard, LogOut, PlusCircle, Settings, Sparkles, Users } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { supabase } from "@/integrations/supabase/client";
+import { useSession } from "@/hooks/use-session";
+import { useQueryClient } from "@tanstack/react-query";
+import { Button } from "@/components/ui/button";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import {
   Sidebar,
   SidebarContent,
@@ -16,6 +21,7 @@ import {
 
 const items = [
   { title: "Visão Geral", url: "/", icon: LayoutDashboard, exact: true },
+  { title: "Clientes", url: "/clients", icon: Users },
   { title: "Campanhas", url: "/campaigns", icon: BarChart3 },
   { title: "Nova Campanha", url: "/campaigns/new", icon: PlusCircle },
   { title: "Configurações", url: "/settings", icon: Settings },
@@ -23,6 +29,28 @@ const items = [
 
 export function AppSidebar() {
   const pathname = useRouterState({ select: (r) => r.location.pathname });
+  const { user } = useSession();
+  const navigate = useNavigate();
+  const qc = useQueryClient();
+
+  const handleSignOut = async () => {
+    await qc.cancelQueries();
+    qc.clear();
+    await supabase.auth.signOut();
+    navigate({ to: "/auth", replace: true });
+  };
+
+  const displayName =
+    (user?.user_metadata?.full_name as string | undefined) ??
+    user?.email ??
+    "Conta";
+  const initials = displayName
+    .split(/\s+/)
+    .map((s) => s[0])
+    .filter(Boolean)
+    .slice(0, 2)
+    .join("")
+    .toUpperCase();
 
   return (
     <Sidebar collapsible="icon">
@@ -66,8 +94,24 @@ export function AppSidebar() {
         </SidebarGroup>
       </SidebarContent>
       <SidebarFooter>
-        <div className="px-2 pb-2 text-[11px] text-muted-foreground">
-          MVP · dados manuais
+        <div className="flex items-center gap-2 rounded-md px-2 py-2">
+          <Avatar className="h-8 w-8">
+            <AvatarImage src={user?.user_metadata?.avatar_url as string | undefined} />
+            <AvatarFallback className="text-xs">{initials || "PU"}</AvatarFallback>
+          </Avatar>
+          <div className="min-w-0 flex-1 leading-tight">
+            <div className="truncate text-xs font-medium">{displayName}</div>
+            <div className="truncate text-[10px] text-muted-foreground">{user?.email ?? ""}</div>
+          </div>
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={handleSignOut}
+            aria-label="Sair"
+            className="h-8 w-8"
+          >
+            <LogOut className="h-4 w-4" />
+          </Button>
         </div>
       </SidebarFooter>
     </Sidebar>
