@@ -40,6 +40,19 @@ export const listClientsFn = createServerFn({ method: "GET" })
     return (data as Row[]).map(toClient);
   });
 
+export const getClientFn = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: { id: string }) => z.object({ id: z.string().uuid() }).parse(input))
+  .handler(async ({ context, data }) => {
+    const { data: row, error } = await context.supabase
+      .from("clients")
+      .select("*")
+      .eq("id", data.id)
+      .maybeSingle();
+    if (error) throw new Error(error.message);
+    return row ? toClient(row as Row) : null;
+  });
+
 const clientSchema = z.object({
   name: z.string().trim().min(1).max(120),
   company: z.string().trim().max(160).optional().nullable(),
