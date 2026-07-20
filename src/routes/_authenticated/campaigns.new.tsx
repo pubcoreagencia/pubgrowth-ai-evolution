@@ -29,6 +29,7 @@ import type { Control } from "react-hook-form";
 
 const schema = z.object({
   clientName: z.string().trim().min(1, "Informe o cliente").max(100),
+  clientId: z.string().uuid().optional().or(z.literal("")).transform((v) => (v ? v : undefined)),
   campaignName: z.string().trim().min(1, "Informe o nome da campanha").max(120),
   videoUrl: z
     .string()
@@ -39,6 +40,7 @@ const schema = z.object({
   startDate: z.string().min(1, "Informe a data inicial"),
   endDate: z.string().min(1, "Informe a data final"),
   dailyBudget: z.coerce.number().min(0, "Valor inválido"),
+  budget: z.coerce.number().min(0, "Valor inválido").optional(),
   days: z.coerce.number().int().min(1, "Mínimo 1 dia"),
   objective: z.enum(["views", "engagement", "traffic", "conversion", "sales", "awareness"]),
   avgProductValue: z.coerce.number().min(0).optional(),
@@ -96,11 +98,13 @@ function NewCampaign() {
     const created = await createCampaign(
       {
         clientName: v.clientName,
+        clientId: v.clientId ?? null,
         campaignName: v.campaignName,
         videoUrl: v.videoUrl,
         startDate: v.startDate,
         endDate: v.endDate,
         dailyBudget: v.dailyBudget,
+        budget: v.budget ?? 0,
         days: v.days,
         objective: v.objective,
         avgProductValue: v.avgProductValue,
