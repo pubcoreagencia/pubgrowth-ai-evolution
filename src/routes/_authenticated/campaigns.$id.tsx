@@ -1,6 +1,15 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useCampaign } from "@/lib/campaigns-store";
 import { useEstimationSettings } from "@/lib/estimation-settings";
+import { useQueryClient } from "@tanstack/react-query";
+import {
+  fundCampaignFn,
+  refundCampaignFn,
+  activateCampaignFn,
+  completeCampaignFn,
+} from "@/lib/wallet.functions";
+import { toast } from "sonner";
+import { Badge as BadgeUI } from "@/components/ui/badge";
 import {
   buildExecutiveReport,
   buildFunnel,
@@ -228,6 +237,8 @@ function CampaignDetail() {
           indicadores refletem os valores reais informados no cadastro da campanha.
         </span>
       </div>
+
+      <FinancialControls campaign={c} />
 
       {/* Main metric cards */}
       <div className="mt-6 grid grid-cols-2 gap-4 md:grid-cols-3 xl:grid-cols-4">
