@@ -1,121 +1,155 @@
-# Portal do Cliente — Proposta
+# Plano: Admin Principal + Recarga PIX (Banco Inter PJ)
 
-## 1. Modelo de autenticação
+## 1. Admin principal — m4cktheus@gmail.com
 
-Um único sistema de auth (Supabase) com **role** determinando a experiência:
+O sistema **já possui** o esquema de roles necessário:
+- Enum `app_role` com `admin | user | client`
+- Tabela `user_roles` (separada de `profiles`, como manda a boa prática)
+- Função `has_role(_user_id, _role)` `SECURITY DEFINER` usada em todas as RLS
+- Trigger `handle_new_user` cria role `user` por padrão
 
-- Roles em `user_roles` (enum `app_role` já existente): `admin` (agência), `user` (padrão atual), e **novo `client`**.
-- Nova tabela `client_users` liga o `auth.user` ao `client_id` que ele pode ver:
+**O que farei (uma migration):**
+- Promover a conta existente `m4cktheus@gmail.com` a `admin`:
+  ```sql
+  INSERT INTO public.user_roles (user_id, role)
+  SELECT id, 'admin' FROM auth.users WHERE email = 'm4cktheus@gmail.com'
+  ON CONFLICT (user_id, role) DO NOTHING;
+  ```
+- Ajustar `handle_new_user` para que, se o e-mail cadastrado for `m4cktheus@gmail.com`, a role atribuída seja `admin` (garantia caso a conta seja recriada).
+- **Nada mais** muda: todas as policies já fazem bypass via `has_role(auth.uid(), 'admin')`. Nenhuma tabela/policy nova é necessária para "acesso total".
 
-```text
-client_users
-  id           uuid pk
-  user_id      uuid → auth.users (unique)   -- 1 login = 1 cliente
-  client_id    uuid → clients
-  invited_by   uuid → auth.users (agência)
-  created_at   timestamptz
-```
+Pré-requisito: a conta precisa existir em `auth.users`. Se ainda não fez login com esse e-mail, cadastre em `/auth` primeiro — a migration é idempotente e pode rodar antes ou depois.
 
-Regra: um usuário `client` tem exatamente 1 linha em `client_users`. A agência (`admin`/`user`) não usa essa tabela.
+## 2. Recarga PIX via Banco Inter PJ
 
-Fluxo de criação (feito pela agência):
-- Na página do cliente, botão **"Convidar acesso do cliente"** → server fn cria o usuário via `supabaseAdmin.auth.admin.inviteUserByEmail`, insere `user_roles(client)` e `client_users(user_id, client_id)`.
-- Cliente recebe email, define senha e cai em `/client-portal`.
+### 2.1 Nova tabela `payment_orders`
 
-Login: mesma tela `/auth`. Após login, um `redirectByRole()` decide:
-- role `client` → `/client-portal`
-- caso contrário → `/` (área da agência)
+| Campo | Tipo | Observação |
+|---|---|---|
+| id | uuid pk | |
+| user_id | uuid → auth.users | dono do pedido (usuário cliente logado) |
+| client_id | uuid → clients | carteira alvo |
+| amount | numeric(14,2) | > 0 |
+| status | enum `payment_status` | `pending / paid / expired / cancelled` |
+| pix_txid | text unique | txid Inter (E2E) |
+| pix_qrcode | text | imagem base64 do QR |
+| pix_copy_paste | text | BR Code |
+| external_payment_id | text | id da cobrança no Inter |
+| expires_at | timestamptz | |
+| paid_at | timestamptz | |
+| created_at / updated_at | timestamptz | |
 
-Cliente que tentar acessar `/campaigns`, `/clients` etc. é redirecionado para `/client-portal` (guarda no layout `_authenticated`).
+RLS:
+- `SELECT`: dono (`user_id = auth.uid()`) **ou** admin
+- `INSERT/UPDATE`: **negado a clientes**; feito somente pelas server functions com `supabaseAdmin` após validação
+- Grants: `authenticated` (SELECT via policy), `service_role` (ALL)
 
-## 2. Estrutura de RLS
+`wallet_ledger` continua imutável — o crédito PIX passa **exclusivamente** pela função `wallet_credit` (já existente, `SECURITY DEFINER`).
 
-Helper `security definer` para evitar recursão:
-
-```sql
-create function public.current_client_id() returns uuid
-  language sql stable security definer set search_path = public as $$
-  select client_id from public.client_users where user_id = auth.uid() limit 1
-$$;
-```
-
-Adicionar **uma policy SELECT por tabela** para role `client`, mantendo policies existentes de `admin`/dono:
-
-| Tabela | Policy nova (SELECT) |
-|---|---|
-| `clients` | `id = current_client_id()` |
-| `campaigns` | `client_id = current_client_id()` |
-| `social_profiles` | `client_id = current_client_id()` |
-| `social_metrics_history` | `social_profile_id in (select id from social_profiles where client_id = current_client_id())` |
-| `client_wallets` | `client_id = current_client_id()` |
-| `wallet_ledger` | `client_id = current_client_id()` |
-| `client_users` | `user_id = auth.uid()` |
-
-**Nenhuma** policy INSERT/UPDATE/DELETE é adicionada para role `client` — leitura pura. As RPCs financeiras (`wallet_credit`, `fund_campaign`, etc.) já checam `has_role('admin')` e continuarão rejeitando clientes.
-
-`estimation_settings` e `profiles` (da agência) não recebem acesso ao role `client`.
-
-## 3. Fluxo de login
+### 2.2 Fluxo completo
 
 ```text
-[/auth]  ── login OK ──▶  lê user_roles
-                          │
-              role=client │        role=admin/user
-                          ▼                ▼
-                  /client-portal        /  (dashboard agência)
+Cliente no /client-portal/wallet
+   │ clica "Adicionar saldo via PIX", informa valor
+   ▼
+createPixOrderFn (server fn, requireSupabaseAuth)
+   │ valida role=client, resolve client_id via current_client_id()
+   │ chama InterPixProvider.createCharge(amount, txid)
+   │ INSERT payment_orders (status=pending, qrcode, copia-e-cola)
+   ▼
+Cliente paga o QR no app do banco
+   ▼
+Banco Inter → POST /api/public/webhooks/inter-pix
+   │ mTLS + validação por header/secret compartilhado
+   │ marca payment_orders.status=paid, paid_at=now()
+   │ chama wallet_credit(client_id, amount, 'Recarga PIX')
+   │   → wallet_ledger (credit) + client_wallets.balance += amount
+   ▼
+Portal do cliente faz polling (a cada 4s até 5min) em getPixOrderFn
+   → detecta status=paid → toast + refetch da carteira
 ```
 
-- Layout `_authenticated/route.tsx` (managed) já redireciona não-autenticado para `/auth`.
-- Adicionar novo layout `_client/route.tsx` (`ssr: false`) que exige role `client`; agência é redirecionada para `/`.
-- Componente `<RoleRedirect />` no `/auth` após sign-in bem-sucedido usa `has_role` para escolher destino.
-- `app-sidebar` (agência) esconde itens se role = client; portal do cliente tem sua própria sidebar/topbar minimalista.
+Idempotência: webhook usa `pix_txid` como chave; reprocessos não duplicam crédito (checa `status='paid'` antes de creditar).
 
-## 4. Wireframe do portal
+### 2.3 Camada de pagamento
 
-Rota: `/client-portal` (+ sub-rotas read-only).
+```
+src/lib/payment-provider/
+  types.ts               # PaymentProvider interface
+  inter-pix.server.ts    # cliente Inter (mTLS + OAuth) — server-only
+  index.server.ts        # factory
+```
+
+Chamada apenas por server functions e pelo webhook. Nunca importada por rota/cliente.
+
+### 2.4 Server functions e rotas novas
+
+- `src/lib/payments.functions.ts`
+  - `createPixOrderFn` (client only)
+  - `getPixOrderFn` (dono ou admin) — polling
+  - `listMyPixOrdersFn` (client)
+  - `listAllPixOrdersFn` (admin) — para o painel financeiro
+- `src/routes/api/public/webhooks/inter-pix.ts` — webhook público com validação de assinatura/segredo
+- `src/routes/client-portal/wallet.tsx` — nova página de carteira
+- `src/routes/_authenticated/admin.financial.tsx` — visão financeira admin
+
+### 2.5 Secrets necessários (Banco Inter PJ — API PIX Cob)
+
+Vou solicitar via tool segura (add_secret):
+- `INTER_CLIENT_ID`
+- `INTER_CLIENT_SECRET`
+- `INTER_CERT_PEM` (certificado mTLS emitido pelo Inter)
+- `INTER_KEY_PEM` (chave privada correspondente)
+- `INTER_PIX_KEY` (chave PIX da conta PJ que receberá — CNPJ/e-mail/EVP)
+- `INTER_WEBHOOK_SECRET` (segredo compartilhado adicional na URL/header — defesa em profundidade além do mTLS)
+- `INTER_ENV` (`sandbox` ou `production`)
+
+Onde obter no Banco Inter:
+- Login no **Internet Banking PJ** → **API Comunidade** → **Aplicações** → criar app com escopos `cob.write cob.read pix.read webhook.write webhook.read`
+- Gerar certificado mTLS na mesma tela (baixar `.crt` e `.key`, colar como PEM nas secrets)
+
+## 3. Portal do Cliente — `/client-portal/wallet`
+
+Layout (mantém tokens e componentes shadcn atuais):
 
 ```text
-┌─────────────────────────────────────────────────────────┐
-│  [Logo agência]   Nome do cliente         Última atu... │
-├─────────────────────────────────────────────────────────┤
-│ [Campanhas ativas] [Investido] [Saldo] [Crescimento %] │
-├─────────────────────────────────────────────────────────┤
-│  Campanhas                                              │
-│  ┌──────────────────────────────────────────────────┐   │
-│  │ Nome │ Plataforma │ Obj │ Período │ Budget │ St.│   │
-│  └──────────────────────────────────────────────────┘   │
-├─────────────────────────────────────────────────────────┤
-│  Redes sociais                                          │
-│  [IG card + sparkline] [TikTok] [YouTube] [Facebook]    │
-├─────────────────────────────────────────────────────────┤
-│  Financeiro                                             │
-│  Saldo: R$ ...   Investido: R$ ...                      │
-│  Histórico (últimas 10 movimentações — read only)       │
-└─────────────────────────────────────────────────────────┘
+┌─ Saldo disponível ─┐ ┌─ Total creditado ─┐ ┌─ Total utilizado ─┐
+│  R$ 1.240,00       │ │  R$ 5.000,00       │ │  R$ 3.760,00       │
+└────────────────────┘ └────────────────────┘ └────────────────────┘
+
+[ Adicionar saldo via PIX ]  → Dialog: valor → gera cobrança
+
+Cobrança ativa (se pending):
+  QR Code  |  Copia e Cola  |  Valor  |  Expira em mm:ss  |  Status
+
+Últimas recargas (tabela: data | valor | status)
 ```
 
-Sub-rotas (opcionais, todas read-only):
-- `/client-portal` — dashboard
-- `/client-portal/campaigns/$id` — detalhes da campanha (mesmos gráficos, sem botões financeiros)
-- `/client-portal/social/$profileId` — evolução do perfil
+## 4. Área Administrativa — `/admin/financial`
 
-Identidade visual: reaproveita `surface-card`, `stat-card`, cores e componentes shadcn atuais.
+- KPIs: pendentes, aprovados hoje/mês, total recebido
+- Tabela: todos os `payment_orders` (filtros por cliente, status, período)
+- Créditos por cliente (top 10)
+- Link para o ledger de cada cliente
+
+Item de menu "Financeiro" na `AppSidebar` visível somente se `has_role(admin)`.
 
 ## 5. Detalhes técnicos
 
-- **Migração**: adiciona valor `'client'` ao enum `app_role`, cria `client_users` (+ GRANTs + RLS), cria função `current_client_id()`, adiciona policies SELECT listadas acima.
-- **Server functions novas** (`.middleware([requireSupabaseAuth])`, sem `supabaseAdmin` na leitura — RLS resolve o escopo):
-  - `getMyClientPortalFn` → retorna cliente + KPIs agregados
-  - `listMyCampaignsFn`, `listMySocialProfilesFn`, `getMyWalletFn`, `listMyLedgerFn`
-  - `inviteClientUserFn` (admin only, usa `supabaseAdmin` para criar auth user + linhas)
-  - `revokeClientUserFn` (admin only)
-- **Componentes** em `src/components/client-portal/` (Header, KPICards, CampaignsList, SocialGrid, WalletSummary).
-- **Rotas**: `src/routes/_client/route.tsx`, `_client/index.tsx`, (sub-rotas opcionais).
-- **Guarda de role**: função `has_role` já existe; no lado cliente, `_client/route.tsx` faz `supabase.rpc('has_role', { _user_id, _role: 'client' })` — redireciona `/` se falso.
-- **UI da agência**: em `/clients/$id`, novo card **"Acesso do cliente"** com email do usuário vinculado (se houver) e botões **Convidar** / **Revogar**.
+- Migration única cria enum `payment_status`, tabela `payment_orders`, grants, RLS, trigger `updated_at`, e promove m4cktheus@gmail.com.
+- Webhook em `src/routes/api/public/webhooks/inter-pix.ts` usa `supabaseAdmin` (import dinâmico dentro do handler) apenas após validação.
+- `wallet_credit` já roda `SECURITY DEFINER` e faz `FOR UPDATE` no saldo — reutilizado sem alteração.
+- `wallet_ledger` permanece imutável (trigger `ledger_immutable` já existe).
+- Polling client-side simples via TanStack Query com `refetchInterval` até `status !== 'pending'`.
+- Sem alteração no design system.
 
-## Fora de escopo (próxima etapa)
+## 6. Ordem de execução (após aprovação)
 
-- Envio de relatório PDF/email
-- Personalização de whitelabel (logo/cor por cliente)
-- Notificações in-app para o cliente
+1. Migration (tabela + role admin) — via `supabase--migration`
+2. Solicitar secrets do Banco Inter (`add_secret`)
+3. Camada `payment-provider/inter-pix.server.ts`
+4. Server functions + webhook
+5. Página `/client-portal/wallet`
+6. Página `/admin/financial` + item na sidebar
+
+Aprova para eu começar pela migration e pela solicitação das secrets?
