@@ -140,7 +140,8 @@ export const updateCampaignFn = createServerFn({ method: "POST" })
     }
     const { data: row, error } = await context.supabase
       .from("campaigns")
-      .update(patch)
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      .update(patch as any)
       .eq("id", data.id)
       .select("*, clients(name)")
       .single();
