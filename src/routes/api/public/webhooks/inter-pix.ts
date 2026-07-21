@@ -65,7 +65,7 @@ async function handle(request: Request): Promise<Response> {
     const { data, error } = await supabaseAdmin.rpc("confirm_pix_payment", {
       p_txid: ev.txid,
       p_paid_amount: paidAmount,
-      p_provider_reference: ev.endToEndId ?? null,
+      p_provider_reference: ev.endToEndId ?? undefined,
     });
 
     if (error) {
