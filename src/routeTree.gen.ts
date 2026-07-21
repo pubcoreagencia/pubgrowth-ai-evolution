@@ -14,6 +14,7 @@ import { Route as ClientPortalRouteRouteImport } from './routes/client-portal/ro
 import { Route as AuthenticatedRouteRouteImport } from './routes/_authenticated/route'
 import { Route as ClientPortalIndexRouteImport } from './routes/client-portal/index'
 import { Route as AuthenticatedIndexRouteImport } from './routes/_authenticated/index'
+import { Route as ClientPortalWalletRouteImport } from './routes/client-portal/wallet'
 import { Route as AuthenticatedSettingsRouteImport } from './routes/_authenticated/settings'
 import { Route as AuthenticatedClientsRouteImport } from './routes/_authenticated/clients'
 import { Route as AuthenticatedCampaignsIndexRouteImport } from './routes/_authenticated/campaigns.index'
@@ -47,6 +48,11 @@ const AuthenticatedIndexRoute = AuthenticatedIndexRouteImport.update({
   id: '/',
   path: '/',
   getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
+const ClientPortalWalletRoute = ClientPortalWalletRouteImport.update({
+  id: '/wallet',
+  path: '/wallet',
+  getParentRoute: () => ClientPortalRouteRoute,
 } as any)
 const AuthenticatedSettingsRoute = AuthenticatedSettingsRouteImport.update({
   id: '/settings',
@@ -106,6 +112,7 @@ export interface FileRoutesByFullPath {
   '/auth': typeof AuthRoute
   '/clients': typeof AuthenticatedClientsRouteWithChildren
   '/settings': typeof AuthenticatedSettingsRoute
+  '/client-portal/wallet': typeof ClientPortalWalletRoute
   '/client-portal/': typeof ClientPortalIndexRoute
   '/campaigns/$id': typeof AuthenticatedCampaignsIdRoute
   '/campaigns/new': typeof AuthenticatedCampaignsNewRoute
@@ -119,6 +126,7 @@ export interface FileRoutesByTo {
   '/auth': typeof AuthRoute
   '/clients': typeof AuthenticatedClientsRouteWithChildren
   '/settings': typeof AuthenticatedSettingsRoute
+  '/client-portal/wallet': typeof ClientPortalWalletRoute
   '/': typeof AuthenticatedIndexRoute
   '/client-portal': typeof ClientPortalIndexRoute
   '/campaigns/$id': typeof AuthenticatedCampaignsIdRoute
@@ -136,6 +144,7 @@ export interface FileRoutesById {
   '/auth': typeof AuthRoute
   '/_authenticated/clients': typeof AuthenticatedClientsRouteWithChildren
   '/_authenticated/settings': typeof AuthenticatedSettingsRoute
+  '/client-portal/wallet': typeof ClientPortalWalletRoute
   '/_authenticated/': typeof AuthenticatedIndexRoute
   '/client-portal/': typeof ClientPortalIndexRoute
   '/_authenticated/campaigns/$id': typeof AuthenticatedCampaignsIdRoute
@@ -154,6 +163,7 @@ export interface FileRouteTypes {
     | '/auth'
     | '/clients'
     | '/settings'
+    | '/client-portal/wallet'
     | '/client-portal/'
     | '/campaigns/$id'
     | '/campaigns/new'
@@ -167,6 +177,7 @@ export interface FileRouteTypes {
     | '/auth'
     | '/clients'
     | '/settings'
+    | '/client-portal/wallet'
     | '/'
     | '/client-portal'
     | '/campaigns/$id'
@@ -183,6 +194,7 @@ export interface FileRouteTypes {
     | '/auth'
     | '/_authenticated/clients'
     | '/_authenticated/settings'
+    | '/client-portal/wallet'
     | '/_authenticated/'
     | '/client-portal/'
     | '/_authenticated/campaigns/$id'
@@ -237,6 +249,13 @@ declare module '@tanstack/react-router' {
       fullPath: '/'
       preLoaderRoute: typeof AuthenticatedIndexRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/client-portal/wallet': {
+      id: '/client-portal/wallet'
+      path: '/wallet'
+      fullPath: '/client-portal/wallet'
+      preLoaderRoute: typeof ClientPortalWalletRouteImport
+      parentRoute: typeof ClientPortalRouteRoute
     }
     '/_authenticated/settings': {
       id: '/_authenticated/settings'
@@ -354,10 +373,12 @@ const AuthenticatedRouteRouteWithChildren =
   AuthenticatedRouteRoute._addFileChildren(AuthenticatedRouteRouteChildren)
 
 interface ClientPortalRouteRouteChildren {
+  ClientPortalWalletRoute: typeof ClientPortalWalletRoute
   ClientPortalIndexRoute: typeof ClientPortalIndexRoute
 }
 
 const ClientPortalRouteRouteChildren: ClientPortalRouteRouteChildren = {
+  ClientPortalWalletRoute: ClientPortalWalletRoute,
   ClientPortalIndexRoute: ClientPortalIndexRoute,
 }
 
