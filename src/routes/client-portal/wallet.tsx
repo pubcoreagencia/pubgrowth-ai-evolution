@@ -38,6 +38,7 @@ const statusLabel: Record<PaymentOrder["status"], string> = {
   paid: "Pago",
   expired: "Expirado",
   cancelled: "Cancelado",
+  requires_review: "Em revisão",
 };
 
 const statusVariant: Record<PaymentOrder["status"], "default" | "secondary" | "outline" | "destructive"> = {
@@ -45,6 +46,7 @@ const statusVariant: Record<PaymentOrder["status"], "default" | "secondary" | "o
   paid: "default",
   expired: "outline",
   cancelled: "destructive",
+  requires_review: "outline",
 };
 
 function ClientWalletPage() {
