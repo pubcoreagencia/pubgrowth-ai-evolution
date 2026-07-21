@@ -21,6 +21,7 @@ import { Route as AuthenticatedCampaignsIndexRouteImport } from './routes/_authe
 import { Route as AuthenticatedClientsIdRouteImport } from './routes/_authenticated/clients.$id'
 import { Route as AuthenticatedCampaignsNewRouteImport } from './routes/_authenticated/campaigns.new'
 import { Route as AuthenticatedCampaignsIdRouteImport } from './routes/_authenticated/campaigns.$id'
+import { Route as AuthenticatedAdminFinancialRouteImport } from './routes/_authenticated/admin.financial'
 import { Route as ApiPublicWebhooksInterPixRouteImport } from './routes/api/public/webhooks/inter-pix'
 import { Route as AuthenticatedClientsIdWalletRouteImport } from './routes/_authenticated/clients.$id.wallet'
 import { Route as AuthenticatedClientsIdSocialProfileIdRouteImport } from './routes/_authenticated/clients.$id.social.$profileId'
@@ -87,6 +88,12 @@ const AuthenticatedCampaignsIdRoute =
     path: '/campaigns/$id',
     getParentRoute: () => AuthenticatedRouteRoute,
   } as any)
+const AuthenticatedAdminFinancialRoute =
+  AuthenticatedAdminFinancialRouteImport.update({
+    id: '/admin/financial',
+    path: '/admin/financial',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
 const ApiPublicWebhooksInterPixRoute =
   ApiPublicWebhooksInterPixRouteImport.update({
     id: '/api/public/webhooks/inter-pix',
@@ -114,6 +121,7 @@ export interface FileRoutesByFullPath {
   '/settings': typeof AuthenticatedSettingsRoute
   '/client-portal/wallet': typeof ClientPortalWalletRoute
   '/client-portal/': typeof ClientPortalIndexRoute
+  '/admin/financial': typeof AuthenticatedAdminFinancialRoute
   '/campaigns/$id': typeof AuthenticatedCampaignsIdRoute
   '/campaigns/new': typeof AuthenticatedCampaignsNewRoute
   '/clients/$id': typeof AuthenticatedClientsIdRouteWithChildren
@@ -129,6 +137,7 @@ export interface FileRoutesByTo {
   '/client-portal/wallet': typeof ClientPortalWalletRoute
   '/': typeof AuthenticatedIndexRoute
   '/client-portal': typeof ClientPortalIndexRoute
+  '/admin/financial': typeof AuthenticatedAdminFinancialRoute
   '/campaigns/$id': typeof AuthenticatedCampaignsIdRoute
   '/campaigns/new': typeof AuthenticatedCampaignsNewRoute
   '/clients/$id': typeof AuthenticatedClientsIdRouteWithChildren
@@ -147,6 +156,7 @@ export interface FileRoutesById {
   '/client-portal/wallet': typeof ClientPortalWalletRoute
   '/_authenticated/': typeof AuthenticatedIndexRoute
   '/client-portal/': typeof ClientPortalIndexRoute
+  '/_authenticated/admin/financial': typeof AuthenticatedAdminFinancialRoute
   '/_authenticated/campaigns/$id': typeof AuthenticatedCampaignsIdRoute
   '/_authenticated/campaigns/new': typeof AuthenticatedCampaignsNewRoute
   '/_authenticated/clients/$id': typeof AuthenticatedClientsIdRouteWithChildren
@@ -165,6 +175,7 @@ export interface FileRouteTypes {
     | '/settings'
     | '/client-portal/wallet'
     | '/client-portal/'
+    | '/admin/financial'
     | '/campaigns/$id'
     | '/campaigns/new'
     | '/clients/$id'
@@ -180,6 +191,7 @@ export interface FileRouteTypes {
     | '/client-portal/wallet'
     | '/'
     | '/client-portal'
+    | '/admin/financial'
     | '/campaigns/$id'
     | '/campaigns/new'
     | '/clients/$id'
@@ -197,6 +209,7 @@ export interface FileRouteTypes {
     | '/client-portal/wallet'
     | '/_authenticated/'
     | '/client-portal/'
+    | '/_authenticated/admin/financial'
     | '/_authenticated/campaigns/$id'
     | '/_authenticated/campaigns/new'
     | '/_authenticated/clients/$id'
@@ -299,6 +312,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedCampaignsIdRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/_authenticated/admin/financial': {
+      id: '/_authenticated/admin/financial'
+      path: '/admin/financial'
+      fullPath: '/admin/financial'
+      preLoaderRoute: typeof AuthenticatedAdminFinancialRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
     '/api/public/webhooks/inter-pix': {
       id: '/api/public/webhooks/inter-pix'
       path: '/api/public/webhooks/inter-pix'
@@ -355,6 +375,7 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedClientsRoute: typeof AuthenticatedClientsRouteWithChildren
   AuthenticatedSettingsRoute: typeof AuthenticatedSettingsRoute
   AuthenticatedIndexRoute: typeof AuthenticatedIndexRoute
+  AuthenticatedAdminFinancialRoute: typeof AuthenticatedAdminFinancialRoute
   AuthenticatedCampaignsIdRoute: typeof AuthenticatedCampaignsIdRoute
   AuthenticatedCampaignsNewRoute: typeof AuthenticatedCampaignsNewRoute
   AuthenticatedCampaignsIndexRoute: typeof AuthenticatedCampaignsIndexRoute
@@ -364,6 +385,7 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedClientsRoute: AuthenticatedClientsRouteWithChildren,
   AuthenticatedSettingsRoute: AuthenticatedSettingsRoute,
   AuthenticatedIndexRoute: AuthenticatedIndexRoute,
+  AuthenticatedAdminFinancialRoute: AuthenticatedAdminFinancialRoute,
   AuthenticatedCampaignsIdRoute: AuthenticatedCampaignsIdRoute,
   AuthenticatedCampaignsNewRoute: AuthenticatedCampaignsNewRoute,
   AuthenticatedCampaignsIndexRoute: AuthenticatedCampaignsIndexRoute,
