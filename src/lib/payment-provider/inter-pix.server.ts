@@ -1,71 +1,101 @@
-// Inter Bank PJ — Pix Cob API client (server-only, Cloudflare Workers compatible).
+// Banco Inter PJ — Pix Cob API client (Cloudflare Workers nativo, mTLS via binding).
 //
-// mTLS obrigatório da API do Inter é feito por um PROXY externo em Node
-// (Fly.io / Render / Railway / Worker próprio com binding mtls_certificates).
-// Este módulo apenas fala HTTP normal com o proxy, autenticando via bearer.
+// Arquitetura:
+//   - mTLS: binding `INTER_MTLS` (mtls_certificates) declarado no wrangler.toml.
+//     Uploaded uma única vez via `wrangler mtls-certificate upload`.
+//   - OAuth token cache: KV binding `INTER_TOKEN_CACHE` (compartilhado entre
+//     isolates, seguro para serverless). Fallback em memória (mesmo isolate).
+//   - Nenhuma dependência de Node APIs (`undici`, `https`, `tls`, `fs`).
+//     100% Web Platform (`fetch`, `URLSearchParams`, `Headers`).
 //
-// Contrato esperado do proxy (mínimo):
-//   POST {INTER_PROXY_URL}/oauth/v2/token
-//     Header: Authorization: Bearer {INTER_PROXY_SECRET}
-//     Body:  application/x-www-form-urlencoded (repassado ao Inter)
-//     Resp:  JSON do Inter { access_token, expires_in, ... }
-//
-//   PUT {INTER_PROXY_URL}/pix/v2/cob/{txid}
-//     Header: Authorization: Bearer {INTER_PROXY_SECRET}
-//            X-Inter-Token: {access_token do Inter}
-//     Body:  JSON repassado ao Inter
-//     Resp:  JSON do Inter
-//
-//   GET {INTER_PROXY_URL}/pix/v2/loc/{id}/qrcode
-//     Header: Authorization: Bearer {INTER_PROXY_SECRET}
-//            X-Inter-Token: {access_token do Inter}
-//     Resp:  JSON do Inter { imagemQrcode, qrcode }
-//
-// O proxy é responsável por: (a) apresentar o cert cliente ao Inter,
-// (b) escolher sandbox vs produção via header/rota, (c) proteger o
-// endpoint com o bearer compartilhado. Referência: ver docs/inter-proxy.md.
+// Troca sandbox <-> produção: alterar somente a secret INTER_ENV e (re)uploadar
+// o certificado correspondente. Nenhum código muda.
 
 import type { CreatePixChargeInput, PaymentProvider, PixCharge } from "./types";
 
-type Env = "sandbox" | "production";
+type InterEnv = "sandbox" | "production";
 
-// Cache por isolate. No Workers cada isolate mantém o próprio cache; não é
-// compartilhado globalmente, mas reduz chamadas OAuth dentro de uma mesma
-// instância. Aceitável para o volume esperado.
-let cachedToken: { value: string; expiresAt: number; env: Env } | null = null;
+interface InterBindings {
+  INTER_MTLS: Fetcher;
+  INTER_TOKEN_CACHE?: KVNamespace;
+}
 
-function getEnv(): Env {
+// Fallback in-memory cache (per isolate). KV é a fonte primária.
+let memToken: { value: string; expiresAt: number; env: InterEnv } | null = null;
+
+function getEnv(): InterEnv {
   const e = (process.env.INTER_ENV ?? "sandbox").toLowerCase();
   return e === "production" ? "production" : "sandbox";
 }
 
-function requireProxy(): { url: string; secret: string } {
-  const url = process.env.INTER_PROXY_URL;
-  const secret = process.env.INTER_PROXY_SECRET;
-  if (!url || !secret) {
+function baseUrl(env: InterEnv): string {
+  return env === "production"
+    ? "https://cdpj.partners.bancointer.com.br"
+    : "https://cdpj-sandbox.partners.uatinter.co";
+}
+
+async function getBindings(): Promise<InterBindings> {
+  // `cloudflare:workers` só existe em runtime workerd. Import dinâmico para
+  // não quebrar tipos/build fora do Worker.
+  try {
+    const mod = (await import(/* @vite-ignore */ "cloudflare:workers")) as {
+      env: InterBindings;
+    };
+    if (!mod?.env?.INTER_MTLS) {
+      throw new Error("Binding INTER_MTLS ausente (verifique wrangler.toml).");
+    }
+    return mod.env;
+  } catch (err) {
     throw new Error(
-      "Proxy mTLS Inter não configurado (INTER_PROXY_URL / INTER_PROXY_SECRET).",
+      "Este código só executa no Cloudflare Workers (binding mTLS obrigatório). " +
+        `Detalhe: ${(err as Error).message}`,
     );
   }
-  return { url: url.replace(/\/$/, ""), secret };
 }
 
-async function proxyFetch(path: string, init: RequestInit & { interToken?: string } = {}) {
-  const { url, secret } = requireProxy();
-  const headers = new Headers(init.headers);
-  headers.set("Authorization", `Bearer ${secret}`);
-  headers.set("X-Inter-Env", getEnv());
-  if (init.interToken) headers.set("X-Inter-Token", init.interToken);
-  const { interToken: _omit, ...rest } = init;
-  return fetch(url + path, { ...rest, headers });
-}
-
-async function getAccessToken(): Promise<string> {
+async function readCachedToken(env: InterEnv, kv?: KVNamespace): Promise<string | null> {
   const now = Date.now();
-  const env = getEnv();
-  if (cachedToken && cachedToken.env === env && cachedToken.expiresAt - 30_000 > now) {
-    return cachedToken.value;
+  if (memToken && memToken.env === env && memToken.expiresAt - 30_000 > now) {
+    return memToken.value;
   }
+  if (kv) {
+    const raw = await kv.get(`inter:token:${env}`);
+    if (raw) {
+      try {
+        const parsed = JSON.parse(raw) as { value: string; expiresAt: number };
+        if (parsed.expiresAt - 30_000 > now) {
+          memToken = { ...parsed, env };
+          return parsed.value;
+        }
+      } catch {
+        // ignore parse errors
+      }
+    }
+  }
+  return null;
+}
+
+async function writeCachedToken(
+  env: InterEnv,
+  value: string,
+  ttlSeconds: number,
+  kv?: KVNamespace,
+): Promise<void> {
+  const expiresAt = Date.now() + ttlSeconds * 1000;
+  memToken = { value, expiresAt, env };
+  if (kv) {
+    // TTL mínimo do KV é 60s.
+    const kvTtl = Math.max(60, ttlSeconds - 30);
+    await kv.put(`inter:token:${env}`, JSON.stringify({ value, expiresAt }), {
+      expirationTtl: kvTtl,
+    });
+  }
+}
+
+async function getAccessToken(bindings: InterBindings): Promise<string> {
+  const env = getEnv();
+  const cached = await readCachedToken(env, bindings.INTER_TOKEN_CACHE);
+  if (cached) return cached;
 
   const clientId = process.env.INTER_CLIENT_ID;
   const clientSecret = process.env.INTER_CLIENT_SECRET;
@@ -80,7 +110,7 @@ async function getAccessToken(): Promise<string> {
     grant_type: "client_credentials",
   }).toString();
 
-  const res = await proxyFetch("/oauth/v2/token", {
+  const res = await bindings.INTER_MTLS.fetch(`${baseUrl(env)}/oauth/v2/token`, {
     method: "POST",
     headers: { "Content-Type": "application/x-www-form-urlencoded" },
     body,
@@ -90,11 +120,7 @@ async function getAccessToken(): Promise<string> {
     throw new Error(`Falha no OAuth Inter (${res.status}): ${text.slice(0, 500)}`);
   }
   const json = (await res.json()) as { access_token: string; expires_in: number };
-  cachedToken = {
-    value: json.access_token,
-    expiresAt: Date.now() + json.expires_in * 1000,
-    env,
-  };
+  await writeCachedToken(env, json.access_token, json.expires_in, bindings.INTER_TOKEN_CACHE);
   return json.access_token;
 }
 
@@ -107,7 +133,9 @@ export const interPixProvider: PaymentProvider = {
     const pixKey = process.env.INTER_PIX_KEY;
     if (!pixKey) throw new Error("INTER_PIX_KEY não configurada.");
 
-    const token = await getAccessToken();
+    const bindings = await getBindings();
+    const env = getEnv();
+    const token = await getAccessToken(bindings);
     const expiresIn = input.expiresIn ?? 3600;
 
     const payload: Record<string, unknown> = {
@@ -124,11 +152,14 @@ export const interPixProvider: PaymentProvider = {
           : { cpf: doc, nome: input.payerName };
     }
 
-    const res = await proxyFetch(`/pix/v2/cob/${encodeURIComponent(input.txid)}`, {
+    const cobUrl = `${baseUrl(env)}/pix/v2/cob/${encodeURIComponent(input.txid)}`;
+    const res = await bindings.INTER_MTLS.fetch(cobUrl, {
       method: "PUT",
-      headers: { "Content-Type": "application/json" },
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${token}`,
+      },
       body: JSON.stringify(payload),
-      interToken: token,
     });
     if (!res.ok) {
       const text = await res.text();
@@ -143,9 +174,10 @@ export const interPixProvider: PaymentProvider = {
 
     let qrcodeBase64 = "";
     if (cob.loc?.id) {
-      const qrRes = await proxyFetch(`/pix/v2/loc/${cob.loc.id}/qrcode`, {
+      const qrUrl = `${baseUrl(env)}/pix/v2/loc/${cob.loc.id}/qrcode`;
+      const qrRes = await bindings.INTER_MTLS.fetch(qrUrl, {
         method: "GET",
-        interToken: token,
+        headers: { Authorization: `Bearer ${token}` },
       });
       if (qrRes.ok) {
         const qrJson = (await qrRes.json()) as { qrcode?: string; imagemQrcode?: string };
