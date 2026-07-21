@@ -53,6 +53,13 @@ async function getBindings(): Promise<InterBindings> {
   }
 }
 
+// AbortSignal.timeout equivalente compatível com Workers.
+function withTimeout(ms: number): AbortSignal {
+  const ctrl = new AbortController();
+  setTimeout(() => ctrl.abort(), ms);
+  return ctrl.signal;
+}
+
 async function readCachedToken(env: InterEnv, kv?: KVNamespace): Promise<string | null> {
   const now = Date.now();
   if (memToken && memToken.env === env && memToken.expiresAt - 30_000 > now) {
@@ -114,10 +121,12 @@ async function getAccessToken(bindings: InterBindings): Promise<string> {
     method: "POST",
     headers: { "Content-Type": "application/x-www-form-urlencoded" },
     body,
+    signal: withTimeout(15_000),
   });
   if (!res.ok) {
     const text = await res.text();
-    throw new Error(`Falha no OAuth Inter (${res.status}): ${text.slice(0, 500)}`);
+    // Nunca loga client_id/secret; apenas status + trecho da resposta.
+    throw new Error(`Falha no OAuth Inter (${res.status}): ${text.slice(0, 300)}`);
   }
   const json = (await res.json()) as { access_token: string; expires_in: number };
   await writeCachedToken(env, json.access_token, json.expires_in, bindings.INTER_TOKEN_CACHE);
@@ -160,6 +169,7 @@ export const interPixProvider: PaymentProvider = {
         Authorization: `Bearer ${token}`,
       },
       body: JSON.stringify(payload),
+      signal: withTimeout(15_000),
     });
     if (!res.ok) {
       const text = await res.text();
@@ -178,6 +188,7 @@ export const interPixProvider: PaymentProvider = {
       const qrRes = await bindings.INTER_MTLS.fetch(qrUrl, {
         method: "GET",
         headers: { Authorization: `Bearer ${token}` },
+        signal: withTimeout(15_000),
       });
       if (qrRes.ok) {
         const qrJson = (await qrRes.json()) as { qrcode?: string; imagemQrcode?: string };
