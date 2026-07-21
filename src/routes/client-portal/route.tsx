@@ -59,6 +59,21 @@ function ClientPortalLayout() {
             </div>
           </div>
         </Link>
+        <nav className="flex items-center gap-3 text-sm">
+          <Link
+            to="/client-portal"
+            activeOptions={{ exact: true }}
+            className="text-muted-foreground hover:text-foreground [&.active]:font-medium [&.active]:text-foreground"
+          >
+            Dashboard
+          </Link>
+          <Link
+            to="/client-portal/wallet"
+            className="text-muted-foreground hover:text-foreground [&.active]:font-medium [&.active]:text-foreground"
+          >
+            Carteira
+          </Link>
+        </nav>
         <div className="flex items-center gap-2">
           <Avatar className="h-8 w-8">
             <AvatarImage src={user?.user_metadata?.avatar_url as string | undefined} />
