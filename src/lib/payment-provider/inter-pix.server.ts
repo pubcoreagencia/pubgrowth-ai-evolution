@@ -1,54 +1,71 @@
-// Inter Bank PJ — Pix Cob API client (server-only).
+// Inter Bank PJ — Pix Cob API client (server-only, Cloudflare Workers compatible).
 //
-// Requires mTLS. On Node/undici this works out of the box; on Cloudflare
-// Workers you need an mTLS certificate binding (Cloudflare Zero Trust /
-// `mtls_certificates`). If the runtime doesn't support client certs, the
-// call will fail with a network error — surface it to the operator and
-// configure a proxy or binding.
+// mTLS obrigatório da API do Inter é feito por um PROXY externo em Node
+// (Fly.io / Render / Railway / Worker próprio com binding mtls_certificates).
+// Este módulo apenas fala HTTP normal com o proxy, autenticando via bearer.
+//
+// Contrato esperado do proxy (mínimo):
+//   POST {INTER_PROXY_URL}/oauth/v2/token
+//     Header: Authorization: Bearer {INTER_PROXY_SECRET}
+//     Body:  application/x-www-form-urlencoded (repassado ao Inter)
+//     Resp:  JSON do Inter { access_token, expires_in, ... }
+//
+//   PUT {INTER_PROXY_URL}/pix/v2/cob/{txid}
+//     Header: Authorization: Bearer {INTER_PROXY_SECRET}
+//            X-Inter-Token: {access_token do Inter}
+//     Body:  JSON repassado ao Inter
+//     Resp:  JSON do Inter
+//
+//   GET {INTER_PROXY_URL}/pix/v2/loc/{id}/qrcode
+//     Header: Authorization: Bearer {INTER_PROXY_SECRET}
+//            X-Inter-Token: {access_token do Inter}
+//     Resp:  JSON do Inter { imagemQrcode, qrcode }
+//
+// O proxy é responsável por: (a) apresentar o cert cliente ao Inter,
+// (b) escolher sandbox vs produção via header/rota, (c) proteger o
+// endpoint com o bearer compartilhado. Referência: ver docs/inter-proxy.md.
 
 import type { CreatePixChargeInput, PaymentProvider, PixCharge } from "./types";
 
-const BASE_URLS = {
-  sandbox: "https://cdpj-sandbox.partners.uatinter.co",
-  production: "https://cdpj.partners.bancointer.com.br",
-} as const;
+type Env = "sandbox" | "production";
 
-type Env = keyof typeof BASE_URLS;
-
-let cachedToken: { value: string; expiresAt: number } | null = null;
+// Cache por isolate. No Workers cada isolate mantém o próprio cache; não é
+// compartilhado globalmente, mas reduz chamadas OAuth dentro de uma mesma
+// instância. Aceitável para o volume esperado.
+let cachedToken: { value: string; expiresAt: number; env: Env } | null = null;
 
 function getEnv(): Env {
   const e = (process.env.INTER_ENV ?? "sandbox").toLowerCase();
   return e === "production" ? "production" : "sandbox";
 }
 
-async function getDispatcher() {
-  // Load undici lazily; only available on Node-compatible runtime.
-  const { Agent } = await import("undici");
-  const cert = process.env.INTER_CERT_PEM;
-  const key = process.env.INTER_KEY_PEM;
-  if (!cert || !key) {
-    throw new Error("Certificado mTLS Inter (INTER_CERT_PEM / INTER_KEY_PEM) não configurado.");
+function requireProxy(): { url: string; secret: string } {
+  const url = process.env.INTER_PROXY_URL;
+  const secret = process.env.INTER_PROXY_SECRET;
+  if (!url || !secret) {
+    throw new Error(
+      "Proxy mTLS Inter não configurado (INTER_PROXY_URL / INTER_PROXY_SECRET).",
+    );
   }
-  return new Agent({ connect: { cert, key } });
+  return { url: url.replace(/\/$/, ""), secret };
 }
 
-async function interFetch(path: string, init: RequestInit & { body?: string } = {}) {
-  const base = BASE_URLS[getEnv()];
-  const dispatcher = await getDispatcher();
-  // undici's fetch accepts a `dispatcher` option; TS types don't include it.
-  const { fetch: undiciFetch } = await import("undici");
-  const res = await (undiciFetch as unknown as typeof fetch)(base + path, {
-    ...init,
-    // @ts-expect-error - undici extension
-    dispatcher,
-  });
-  return res;
+async function proxyFetch(path: string, init: RequestInit & { interToken?: string } = {}) {
+  const { url, secret } = requireProxy();
+  const headers = new Headers(init.headers);
+  headers.set("Authorization", `Bearer ${secret}`);
+  headers.set("X-Inter-Env", getEnv());
+  if (init.interToken) headers.set("X-Inter-Token", init.interToken);
+  const { interToken: _omit, ...rest } = init;
+  return fetch(url + path, { ...rest, headers });
 }
 
 async function getAccessToken(): Promise<string> {
   const now = Date.now();
-  if (cachedToken && cachedToken.expiresAt - 30_000 > now) return cachedToken.value;
+  const env = getEnv();
+  if (cachedToken && cachedToken.env === env && cachedToken.expiresAt - 30_000 > now) {
+    return cachedToken.value;
+  }
 
   const clientId = process.env.INTER_CLIENT_ID;
   const clientSecret = process.env.INTER_CLIENT_SECRET;
@@ -63,7 +80,7 @@ async function getAccessToken(): Promise<string> {
     grant_type: "client_credentials",
   }).toString();
 
-  const res = await interFetch("/oauth/v2/token", {
+  const res = await proxyFetch("/oauth/v2/token", {
     method: "POST",
     headers: { "Content-Type": "application/x-www-form-urlencoded" },
     body,
@@ -76,6 +93,7 @@ async function getAccessToken(): Promise<string> {
   cachedToken = {
     value: json.access_token,
     expiresAt: Date.now() + json.expires_in * 1000,
+    env,
   };
   return json.access_token;
 }
@@ -106,13 +124,11 @@ export const interPixProvider: PaymentProvider = {
           : { cpf: doc, nome: input.payerName };
     }
 
-    const res = await interFetch(`/pix/v2/cob/${encodeURIComponent(input.txid)}`, {
+    const res = await proxyFetch(`/pix/v2/cob/${encodeURIComponent(input.txid)}`, {
       method: "PUT",
-      headers: {
-        Authorization: `Bearer ${token}`,
-        "Content-Type": "application/json",
-      },
+      headers: { "Content-Type": "application/json" },
       body: JSON.stringify(payload),
+      interToken: token,
     });
     if (!res.ok) {
       const text = await res.text();
@@ -125,12 +141,11 @@ export const interPixProvider: PaymentProvider = {
       calendario?: { criacao: string; expiracao: number };
     };
 
-    // Fetch QR code image for the loc
     let qrcodeBase64 = "";
     if (cob.loc?.id) {
-      const qrRes = await interFetch(`/pix/v2/loc/${cob.loc.id}/qrcode`, {
+      const qrRes = await proxyFetch(`/pix/v2/loc/${cob.loc.id}/qrcode`, {
         method: "GET",
-        headers: { Authorization: `Bearer ${token}` },
+        interToken: token,
       });
       if (qrRes.ok) {
         const qrJson = (await qrRes.json()) as { qrcode?: string; imagemQrcode?: string };
