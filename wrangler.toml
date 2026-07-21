@@ -37,14 +37,14 @@ compatibility_flags = ["nodejs_compat"]
 # ---------------------------------------------------------------------------
 [[mtls_certificates]]
 binding = "INTER_MTLS"
-certificate_id = "REPLACE_WITH_CERT_ID"
+certificate_id = "55340a48-83c3-4812-9c4b-2c5e2ed861a9"
 
 # ---------------------------------------------------------------------------
 # KV para cache do access_token OAuth do Inter (compartilhado entre isolates).
 # ---------------------------------------------------------------------------
 [[kv_namespaces]]
 binding = "INTER_TOKEN_CACHE"
-id = "REPLACE_WITH_KV_ID"
+id = "9eba4044681f4d12badbb0990d761bd0"
 
 # ---------------------------------------------------------------------------
 # Variáveis públicas (não-secretas). Secrets vão via `wrangler secret put`.

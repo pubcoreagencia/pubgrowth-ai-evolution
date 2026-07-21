@@ -13,6 +13,10 @@ import appCss from "../styles.css?url";
 import { reportLovableError } from "../lib/lovable-error-reporting";
 import { Toaster } from "@/components/ui/sonner";
 import { supabase } from "@/integrations/supabase/client";
+import {
+  isLikelySupabasePublishableKey,
+  isLikelySupabaseUrl,
+} from "@/integrations/supabase/config";
 
 function NotFoundComponent() {
   return (
@@ -86,7 +90,10 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
           "Transforme campanhas do Instagram em relatórios executivos claros, métricas confiáveis e dashboards profissionais para seus clientes.",
       },
       { name: "author", content: "PubGrowth AI" },
-      { property: "og:title", content: "PubGrowth AI — Relatórios executivos de campanhas do Instagram" },
+      {
+        property: "og:title",
+        content: "PubGrowth AI — Relatórios executivos de campanhas do Instagram",
+      },
       {
         property: "og:description",
         content:
@@ -94,10 +101,25 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
       },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary_large_image" },
-      { name: "twitter:title", content: "PubGrowth AI — Relatórios executivos de campanhas do Instagram" },
-      { name: "twitter:description", content: "Transforme campanhas do Instagram em relatórios executivos claros, métricas confiáveis e dashboards profissionais para seus clientes." },
-      { property: "og:image", content: "https://storage.googleapis.com/gpt-engineer-file-uploads/0Oc5cY8BBHdoPpuKPeTAjiRJo952/social-images/social-1784057131536-ChatGPT_Image_14_de_jul._de_2026,_16_23_29.webp" },
-      { name: "twitter:image", content: "https://storage.googleapis.com/gpt-engineer-file-uploads/0Oc5cY8BBHdoPpuKPeTAjiRJo952/social-images/social-1784057131536-ChatGPT_Image_14_de_jul._de_2026,_16_23_29.webp" },
+      {
+        name: "twitter:title",
+        content: "PubGrowth AI — Relatórios executivos de campanhas do Instagram",
+      },
+      {
+        name: "twitter:description",
+        content:
+          "Transforme campanhas do Instagram em relatórios executivos claros, métricas confiáveis e dashboards profissionais para seus clientes.",
+      },
+      {
+        property: "og:image",
+        content:
+          "https://storage.googleapis.com/gpt-engineer-file-uploads/0Oc5cY8BBHdoPpuKPeTAjiRJo952/social-images/social-1784057131536-ChatGPT_Image_14_de_jul._de_2026,_16_23_29.webp",
+      },
+      {
+        name: "twitter:image",
+        content:
+          "https://storage.googleapis.com/gpt-engineer-file-uploads/0Oc5cY8BBHdoPpuKPeTAjiRJo952/social-images/social-1784057131536-ChatGPT_Image_14_de_jul._de_2026,_16_23_29.webp",
+      },
     ],
     links: [
       { rel: "stylesheet", href: appCss },
@@ -120,9 +142,18 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
 });
 
 function RootShell({ children }: { children: ReactNode }) {
+  const supabaseRuntimeConfigScript = getSupabaseRuntimeConfigScript();
+
   return (
     <html lang="pt-BR" className="dark">
       <head>
+        {supabaseRuntimeConfigScript ? (
+          <script
+            dangerouslySetInnerHTML={{
+              __html: supabaseRuntimeConfigScript,
+            }}
+          />
+        ) : null}
         <HeadContent />
       </head>
       <body>
@@ -131,6 +162,26 @@ function RootShell({ children }: { children: ReactNode }) {
       </body>
     </html>
   );
+}
+
+function getSupabaseRuntimeConfigScript(): string | null {
+  if (typeof process === "undefined") return null;
+
+  const supabaseUrl = process.env.SUPABASE_URL;
+  const supabasePublishableKey = process.env.SUPABASE_PUBLISHABLE_KEY;
+  if (
+    !isLikelySupabaseUrl(supabaseUrl) ||
+    !isLikelySupabasePublishableKey(supabasePublishableKey)
+  ) {
+    return null;
+  }
+
+  const config = JSON.stringify({
+    supabaseUrl,
+    supabasePublishableKey,
+  }).replace(/</g, "\\u003c");
+
+  return `window.__PUBGROWTH_SUPABASE_CONFIG__=${config};`;
 }
 
 function RootComponent() {

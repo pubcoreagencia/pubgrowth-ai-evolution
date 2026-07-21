@@ -1,7 +1,6 @@
 import { createFileRoute, useNavigate, Link } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
-import { lovable } from "@/integrations/lovable/index";
 import { getMyRoleFn } from "@/lib/client-portal.functions";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -16,7 +15,10 @@ export const Route = createFileRoute("/auth")({
   head: () => ({
     meta: [
       { title: "Entrar — PubGrowth AI" },
-      { name: "description", content: "Acesse sua conta PubGrowth AI para gerenciar campanhas e clientes." },
+      {
+        name: "description",
+        content: "Acesse sua conta PubGrowth AI para gerenciar campanhas e clientes.",
+      },
     ],
   }),
 });
@@ -80,13 +82,14 @@ function AuthPage() {
 
   const handleGoogle = async () => {
     setLoading(true);
-    const result = await lovable.auth.signInWithOAuth("google", {
-      redirect_uri: window.location.origin,
+    const { error } = await supabase.auth.signInWithOAuth({
+      provider: "google",
+      options: {
+        redirectTo: window.location.origin,
+      },
     });
     setLoading(false);
-    if (result.error) return toast.error(result.error.message ?? "Falha ao entrar com Google");
-    if (result.redirected) return;
-    await goByRole();
+    if (error) return toast.error(error.message ?? "Falha ao entrar com Google");
   };
 
   if (checking) {
@@ -124,7 +127,13 @@ function AuthPage() {
                   </div>
                   <div className="space-y-1.5">
                     <Label htmlFor="si-pw">Senha</Label>
-                    <Input id="si-pw" name="password" type="password" required autoComplete="current-password" />
+                    <Input
+                      id="si-pw"
+                      name="password"
+                      type="password"
+                      required
+                      autoComplete="current-password"
+                    />
                   </div>
                   <Button type="submit" className="w-full" disabled={loading}>
                     Entrar
@@ -144,7 +153,14 @@ function AuthPage() {
                   </div>
                   <div className="space-y-1.5">
                     <Label htmlFor="su-pw">Senha</Label>
-                    <Input id="su-pw" name="password" type="password" required minLength={6} autoComplete="new-password" />
+                    <Input
+                      id="su-pw"
+                      name="password"
+                      type="password"
+                      required
+                      minLength={6}
+                      autoComplete="new-password"
+                    />
                   </div>
                   <Button type="submit" className="w-full" disabled={loading}>
                     Criar conta
@@ -162,7 +178,13 @@ function AuthPage() {
               </div>
             </div>
 
-            <Button type="button" variant="outline" className="w-full" onClick={handleGoogle} disabled={loading}>
+            <Button
+              type="button"
+              variant="outline"
+              className="w-full"
+              onClick={handleGoogle}
+              disabled={loading}
+            >
               Continuar com Google
             </Button>
           </CardContent>
