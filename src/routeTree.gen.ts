@@ -20,6 +20,7 @@ import { Route as AuthenticatedCampaignsIndexRouteImport } from './routes/_authe
 import { Route as AuthenticatedClientsIdRouteImport } from './routes/_authenticated/clients.$id'
 import { Route as AuthenticatedCampaignsNewRouteImport } from './routes/_authenticated/campaigns.new'
 import { Route as AuthenticatedCampaignsIdRouteImport } from './routes/_authenticated/campaigns.$id'
+import { Route as ApiPublicWebhooksInterPixRouteImport } from './routes/api/public/webhooks/inter-pix'
 import { Route as AuthenticatedClientsIdWalletRouteImport } from './routes/_authenticated/clients.$id.wallet'
 import { Route as AuthenticatedClientsIdSocialProfileIdRouteImport } from './routes/_authenticated/clients.$id.social.$profileId'
 
@@ -80,6 +81,12 @@ const AuthenticatedCampaignsIdRoute =
     path: '/campaigns/$id',
     getParentRoute: () => AuthenticatedRouteRoute,
   } as any)
+const ApiPublicWebhooksInterPixRoute =
+  ApiPublicWebhooksInterPixRouteImport.update({
+    id: '/api/public/webhooks/inter-pix',
+    path: '/api/public/webhooks/inter-pix',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 const AuthenticatedClientsIdWalletRoute =
   AuthenticatedClientsIdWalletRouteImport.update({
     id: '/wallet',
@@ -105,6 +112,7 @@ export interface FileRoutesByFullPath {
   '/clients/$id': typeof AuthenticatedClientsIdRouteWithChildren
   '/campaigns/': typeof AuthenticatedCampaignsIndexRoute
   '/clients/$id/wallet': typeof AuthenticatedClientsIdWalletRoute
+  '/api/public/webhooks/inter-pix': typeof ApiPublicWebhooksInterPixRoute
   '/clients/$id/social/$profileId': typeof AuthenticatedClientsIdSocialProfileIdRoute
 }
 export interface FileRoutesByTo {
@@ -118,6 +126,7 @@ export interface FileRoutesByTo {
   '/clients/$id': typeof AuthenticatedClientsIdRouteWithChildren
   '/campaigns': typeof AuthenticatedCampaignsIndexRoute
   '/clients/$id/wallet': typeof AuthenticatedClientsIdWalletRoute
+  '/api/public/webhooks/inter-pix': typeof ApiPublicWebhooksInterPixRoute
   '/clients/$id/social/$profileId': typeof AuthenticatedClientsIdSocialProfileIdRoute
 }
 export interface FileRoutesById {
@@ -134,6 +143,7 @@ export interface FileRoutesById {
   '/_authenticated/clients/$id': typeof AuthenticatedClientsIdRouteWithChildren
   '/_authenticated/campaigns/': typeof AuthenticatedCampaignsIndexRoute
   '/_authenticated/clients/$id/wallet': typeof AuthenticatedClientsIdWalletRoute
+  '/api/public/webhooks/inter-pix': typeof ApiPublicWebhooksInterPixRoute
   '/_authenticated/clients/$id/social/$profileId': typeof AuthenticatedClientsIdSocialProfileIdRoute
 }
 export interface FileRouteTypes {
@@ -150,6 +160,7 @@ export interface FileRouteTypes {
     | '/clients/$id'
     | '/campaigns/'
     | '/clients/$id/wallet'
+    | '/api/public/webhooks/inter-pix'
     | '/clients/$id/social/$profileId'
   fileRoutesByTo: FileRoutesByTo
   to:
@@ -163,6 +174,7 @@ export interface FileRouteTypes {
     | '/clients/$id'
     | '/campaigns'
     | '/clients/$id/wallet'
+    | '/api/public/webhooks/inter-pix'
     | '/clients/$id/social/$profileId'
   id:
     | '__root__'
@@ -178,6 +190,7 @@ export interface FileRouteTypes {
     | '/_authenticated/clients/$id'
     | '/_authenticated/campaigns/'
     | '/_authenticated/clients/$id/wallet'
+    | '/api/public/webhooks/inter-pix'
     | '/_authenticated/clients/$id/social/$profileId'
   fileRoutesById: FileRoutesById
 }
@@ -185,6 +198,7 @@ export interface RootRouteChildren {
   AuthenticatedRouteRoute: typeof AuthenticatedRouteRouteWithChildren
   ClientPortalRouteRoute: typeof ClientPortalRouteRouteWithChildren
   AuthRoute: typeof AuthRoute
+  ApiPublicWebhooksInterPixRoute: typeof ApiPublicWebhooksInterPixRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -265,6 +279,13 @@ declare module '@tanstack/react-router' {
       fullPath: '/campaigns/$id'
       preLoaderRoute: typeof AuthenticatedCampaignsIdRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/api/public/webhooks/inter-pix': {
+      id: '/api/public/webhooks/inter-pix'
+      path: '/api/public/webhooks/inter-pix'
+      fullPath: '/api/public/webhooks/inter-pix'
+      preLoaderRoute: typeof ApiPublicWebhooksInterPixRouteImport
+      parentRoute: typeof rootRouteImport
     }
     '/_authenticated/clients/$id/wallet': {
       id: '/_authenticated/clients/$id/wallet'
@@ -347,6 +368,7 @@ const rootRouteChildren: RootRouteChildren = {
   AuthenticatedRouteRoute: AuthenticatedRouteRouteWithChildren,
   ClientPortalRouteRoute: ClientPortalRouteRouteWithChildren,
   AuthRoute: AuthRoute,
+  ApiPublicWebhooksInterPixRoute: ApiPublicWebhooksInterPixRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
