@@ -235,10 +235,13 @@ export type Database = {
           expires_at: string | null
           external_payment_id: string | null
           id: string
+          last_webhook_at: string | null
           paid_at: string | null
           pix_copy_paste: string | null
           pix_qrcode: string | null
           pix_txid: string | null
+          provider_paid_amount: number | null
+          reconciliation_error: string | null
           status: Database["public"]["Enums"]["payment_status"]
           updated_at: string
           user_id: string
@@ -250,10 +253,13 @@ export type Database = {
           expires_at?: string | null
           external_payment_id?: string | null
           id?: string
+          last_webhook_at?: string | null
           paid_at?: string | null
           pix_copy_paste?: string | null
           pix_qrcode?: string | null
           pix_txid?: string | null
+          provider_paid_amount?: number | null
+          reconciliation_error?: string | null
           status?: Database["public"]["Enums"]["payment_status"]
           updated_at?: string
           user_id: string
@@ -265,10 +271,13 @@ export type Database = {
           expires_at?: string | null
           external_payment_id?: string | null
           id?: string
+          last_webhook_at?: string | null
           paid_at?: string | null
           pix_copy_paste?: string | null
           pix_qrcode?: string | null
           pix_txid?: string | null
+          provider_paid_amount?: number | null
+          reconciliation_error?: string | null
           status?: Database["public"]["Enums"]["payment_status"]
           updated_at?: string
           user_id?: string
@@ -478,6 +487,7 @@ export type Database = {
           entry_type: Database["public"]["Enums"]["wallet_entry_type"]
           id: string
           note: string | null
+          payment_order_id: string | null
           user_id: string
           wallet_id: string
         }
@@ -491,6 +501,7 @@ export type Database = {
           entry_type: Database["public"]["Enums"]["wallet_entry_type"]
           id?: string
           note?: string | null
+          payment_order_id?: string | null
           user_id: string
           wallet_id: string
         }
@@ -504,6 +515,7 @@ export type Database = {
           entry_type?: Database["public"]["Enums"]["wallet_entry_type"]
           id?: string
           note?: string | null
+          payment_order_id?: string | null
           user_id?: string
           wallet_id?: string
         }
@@ -520,6 +532,13 @@ export type Database = {
             columns: ["client_id"]
             isOneToOne: false
             referencedRelation: "clients"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "wallet_ledger_payment_order_id_fkey"
+            columns: ["payment_order_id"]
+            isOneToOne: false
+            referencedRelation: "payment_orders"
             referencedColumns: ["id"]
           },
           {
@@ -596,6 +615,14 @@ export type Database = {
           isSetofReturn: false
         }
       }
+      confirm_pix_payment: {
+        Args: {
+          p_paid_amount: number
+          p_provider_reference?: string
+          p_txid: string
+        }
+        Returns: Json
+      }
       current_client_id: { Args: never; Returns: string }
       fund_campaign: {
         Args: { _campaign_id: string }
@@ -609,6 +636,7 @@ export type Database = {
           entry_type: Database["public"]["Enums"]["wallet_entry_type"]
           id: string
           note: string | null
+          payment_order_id: string | null
           user_id: string
           wallet_id: string
         }
@@ -638,6 +666,7 @@ export type Database = {
           entry_type: Database["public"]["Enums"]["wallet_entry_type"]
           id: string
           note: string | null
+          payment_order_id: string | null
           user_id: string
           wallet_id: string
         }
@@ -660,6 +689,7 @@ export type Database = {
           entry_type: Database["public"]["Enums"]["wallet_entry_type"]
           id: string
           note: string | null
+          payment_order_id: string | null
           user_id: string
           wallet_id: string
         }
@@ -682,6 +712,7 @@ export type Database = {
           entry_type: Database["public"]["Enums"]["wallet_entry_type"]
           id: string
           note: string | null
+          payment_order_id: string | null
           user_id: string
           wallet_id: string
         }
@@ -712,7 +743,12 @@ export type Database = {
         | "active"
         | "cancelled"
         | "refunded"
-      payment_status: "pending" | "paid" | "expired" | "cancelled"
+      payment_status:
+        | "pending"
+        | "paid"
+        | "expired"
+        | "cancelled"
+        | "requires_review"
       social_platform: "instagram" | "tiktok" | "youtube" | "facebook"
       wallet_entry_type: "credit" | "debit" | "refund" | "adjustment"
     }
@@ -862,7 +898,13 @@ export const Constants = {
         "cancelled",
         "refunded",
       ],
-      payment_status: ["pending", "paid", "expired", "cancelled"],
+      payment_status: [
+        "pending",
+        "paid",
+        "expired",
+        "cancelled",
+        "requires_review",
+      ],
       social_platform: ["instagram", "tiktok", "youtube", "facebook"],
       wallet_entry_type: ["credit", "debit", "refund", "adjustment"],
     },

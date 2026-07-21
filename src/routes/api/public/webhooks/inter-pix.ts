@@ -49,58 +49,53 @@ async function handle(request: Request): Promise<Response> {
 
   for (const ev of events) {
     const paidAmount = Number(ev?.valor);
-    if (!ev?.txid || typeof ev.txid !== "string" || !Number.isFinite(paidAmount) || paidAmount <= 0) {
+    if (
+      !ev?.txid ||
+      typeof ev.txid !== "string" ||
+      !Number.isFinite(paidAmount) ||
+      paidAmount <= 0
+    ) {
       continue;
     }
 
-    const { data: order, error: findErr } = await supabaseAdmin
-      .from("payment_orders")
-      .select("id, client_id, status, amount")
-      .eq("pix_txid", ev.txid)
-      .maybeSingle();
-    if (findErr) {
-      console.error("[inter-pix] find error", findErr.message);
-      continue;
-    }
-    if (!order) {
-      console.warn("[inter-pix] txid não encontrado:", ev.txid);
-      // 2xx to avoid retries for txids that don't belong to this app.
-      continue;
-    }
-    if (order.status === "paid") continue; // idempotência
-
-    // Conditional UPDATE + row count check = atomic idempotência.
-    // Concurrent webhooks: apenas UMA UPDATE afeta a linha (pending -> paid);
-    // as demais retornam array vazio e não creditam.
-    const orderAmount = Number(order.amount);
-    if (Number.isFinite(orderAmount) && Math.abs(orderAmount - paidAmount) > 0.01) {
-      console.warn(
-        `[inter-pix] valor divergente para txid ${ev.txid}: pago=${paidAmount} esperado=${orderAmount}. Creditando valor da ordem.`,
-      );
-    }
-
-    const { data: updated, error: updErr } = await supabaseAdmin
-      .from("payment_orders")
-      .update({ status: "paid", paid_at: new Date().toISOString() })
-      .eq("id", order.id)
-      .eq("status", "pending")
-      .select("id");
-    if (updErr) {
-      console.error("[inter-pix] update error", updErr.message);
-      continue;
-    }
-    if (!updated || updated.length === 0) {
-      // Outra execução concorrente já processou este txid.
-      continue;
-    }
-
-    const { error: creditErr } = await supabaseAdmin.rpc("wallet_credit", {
-      _client_id: order.client_id,
-      _amount: orderAmount,
-      _note: "Recarga PIX carteira",
+    // Toda a lógica (localizar, bloquear, validar valor, creditar, marcar paid)
+    // acontece em UMA transação dentro da função `confirm_pix_payment`.
+    // O índice único parcial em wallet_ledger(payment_order_id) WHERE entry_type='credit'
+    // garante que webhooks concorrentes nunca gerem crédito duplicado.
+    const { data, error } = await supabaseAdmin.rpc("confirm_pix_payment", {
+      p_txid: ev.txid,
+      p_paid_amount: paidAmount,
+      p_provider_reference: ev.endToEndId ?? undefined,
     });
-    if (creditErr) {
-      console.error("[inter-pix] credit error", creditErr.message);
+
+    if (error) {
+      // Log sanitizado (sem valores/PII): apenas o resultado da RPC.
+      console.error("[inter-pix] rpc error", error.message);
+      continue;
+    }
+
+    const result =
+      data && typeof data === "object" && "result" in data
+        ? String((data as { result: unknown }).result)
+        : "unknown";
+
+    switch (result) {
+      case "credited":
+      case "already_paid":
+        break;
+      case "amount_mismatch":
+        // Pedido marcado como requires_review; retornamos 200 para evitar retries
+        // inúteis. Revisão manual pelo admin.
+        console.warn("[inter-pix] amount_mismatch — requires_review");
+        break;
+      case "not_found":
+        console.warn("[inter-pix] txid desconhecido");
+        break;
+      case "invalid_status":
+        console.warn("[inter-pix] status não pagável");
+        break;
+      default:
+        console.warn("[inter-pix] resultado inesperado:", result);
     }
   }
 

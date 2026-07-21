@@ -29,6 +29,7 @@ const statusLabel: Record<PaymentOrder["status"], string> = {
   paid: "Pago",
   expired: "Expirado",
   cancelled: "Cancelado",
+  requires_review: "Em revisão",
 };
 
 const statusVariant: Record<
@@ -39,6 +40,7 @@ const statusVariant: Record<
   paid: "default",
   expired: "outline",
   cancelled: "destructive",
+  requires_review: "outline",
 };
 
 function AdminFinancialPage() {

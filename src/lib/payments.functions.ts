@@ -2,7 +2,12 @@ import { createServerFn } from "@tanstack/react-start";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { z } from "zod";
 
-export type PaymentStatus = "pending" | "paid" | "expired" | "cancelled";
+export type PaymentStatus =
+  | "pending"
+  | "paid"
+  | "expired"
+  | "cancelled"
+  | "requires_review";
 
 export interface PaymentOrder {
   id: string;
