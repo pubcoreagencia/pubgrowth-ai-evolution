@@ -1,9 +1,9 @@
 import { Link, useRouterState, useNavigate } from "@tanstack/react-router";
-import { BarChart3, LayoutDashboard, LogOut, PlusCircle, Settings, Sparkles, Users } from "lucide-react";
+import { BarChart3, LayoutDashboard, LogOut, PlusCircle, Settings, Sparkles, Users, Wallet } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { supabase } from "@/integrations/supabase/client";
 import { useSession } from "@/hooks/use-session";
-import { useQueryClient } from "@tanstack/react-query";
+import { useQueryClient, useQuery } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import {
@@ -27,11 +27,28 @@ const items = [
   { title: "Configurações", url: "/settings", icon: Settings },
 ];
 
+const adminItems = [
+  { title: "Financeiro", url: "/admin/financial", icon: Wallet },
+];
+
 export function AppSidebar() {
   const pathname = useRouterState({ select: (r) => r.location.pathname });
   const { user } = useSession();
   const navigate = useNavigate();
   const qc = useQueryClient();
+
+  const isAdminQ = useQuery({
+    queryKey: ["is-admin", user?.id],
+    enabled: !!user?.id,
+    queryFn: async () => {
+      const { data } = await supabase.rpc("has_role", {
+        _user_id: user!.id,
+        _role: "admin",
+      });
+      return Boolean(data);
+    },
+  });
+  const isAdmin = isAdminQ.data === true;
 
   const handleSignOut = async () => {
     await qc.cancelQueries();
@@ -92,6 +109,29 @@ export function AppSidebar() {
             </SidebarMenu>
           </SidebarGroupContent>
         </SidebarGroup>
+        {isAdmin && (
+          <SidebarGroup>
+            <SidebarGroupLabel>Admin</SidebarGroupLabel>
+            <SidebarGroupContent>
+              <SidebarMenu>
+                {adminItems.map((item) => {
+                  const active =
+                    pathname === item.url || pathname.startsWith(item.url + "/");
+                  return (
+                    <SidebarMenuItem key={item.url}>
+                      <SidebarMenuButton asChild isActive={active}>
+                        <Link to={item.url} className={cn("flex items-center gap-2")}>
+                          <item.icon className="h-4 w-4" />
+                          <span>{item.title}</span>
+                        </Link>
+                      </SidebarMenuButton>
+                    </SidebarMenuItem>
+                  );
+                })}
+              </SidebarMenu>
+            </SidebarGroupContent>
+          </SidebarGroup>
+        )}
       </SidebarContent>
       <SidebarFooter>
         <div className="flex items-center gap-2 rounded-md px-2 py-2">
