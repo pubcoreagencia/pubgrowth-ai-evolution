@@ -38,13 +38,13 @@ async function getBindings(): Promise<InterBindings> {
   // `cloudflare:workers` só existe em runtime workerd. Import dinâmico para
   // não quebrar tipos/build fora do Worker.
   try {
-    const mod = (await import(/* @vite-ignore */ "cloudflare:workers")) as {
-      env: InterBindings;
+    const mod = (await import(/* @vite-ignore */ "cloudflare:workers")) as unknown as {
+      env: Partial<InterBindings>;
     };
     if (!mod?.env?.INTER_MTLS) {
       throw new Error("Binding INTER_MTLS ausente (verifique wrangler.toml).");
     }
-    return mod.env;
+    return mod.env as InterBindings;
   } catch (err) {
     throw new Error(
       "Este código só executa no Cloudflare Workers (binding mTLS obrigatório). " +
