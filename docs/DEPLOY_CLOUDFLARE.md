@@ -86,6 +86,20 @@ Ou use header `x-webhook-secret`. O secret protege contra chamadas não
 autorizadas — o Inter também apresenta mTLS na chamada (você não precisa
 validar o mTLS reverso no Worker; a URL + secret bastam).
 
+### Teste rápido de rejeição do webhook
+
+Depois de publicar o Worker, valide que chamadas sem secret são bloqueadas:
+
+```bash
+# Sem secret → deve responder 401 Unauthorized
+curl -i -X POST https://<seu-worker>.workers.dev/api/public/webhooks/inter-pix \
+  -H 'content-type: application/json' -d '{"pix":[]}'
+
+# Com secret correto → deve responder 200 ok
+curl -i -X POST "https://<seu-worker>.workers.dev/api/public/webhooks/inter-pix?secret=$INTER_WEBHOOK_SECRET" \
+  -H 'content-type: application/json' -d '{"pix":[]}'
+```
+
 ## 7. Troca Sandbox → Produção
 
 Zero alteração de código. Sequência:

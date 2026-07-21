@@ -20,9 +20,14 @@
 #   5. bun install && bun run build && wrangler deploy
 
 name = "pubgrowthai"
-main = ".output/server/index.mjs"
 compatibility_date = "2025-07-01"
 compatibility_flags = ["nodejs_compat"]
+
+# NOTA: `main` e `[assets]` NÃO ficam aqui. O build do TanStack Start (nitro)
+# gera `dist/server/wrangler.json` com os caminhos corretos (`main = index.mjs`
+# e `assets.directory = ../client`) e um `.wrangler/deploy/config.json`
+# apontando para ele — `wrangler deploy` usa esse config gerado.
+# Bindings, vars e observability declarados abaixo são herdados no merge.
 
 # ---------------------------------------------------------------------------
 # mTLS binding — apresenta o certificado do Banco Inter no handshake TLS.
@@ -48,9 +53,8 @@ id = "REPLACE_WITH_KV_ID"
 INTER_ENV = "sandbox"     # troque para "production" ao migrar
 
 # Servir estáticos do build TanStack Start (SPA + assets do SSR).
-[assets]
-directory = ".output/public"
-binding = "ASSETS"
+# O binding [assets] é gerado por nitro em dist/server/wrangler.json
+# (directory = ../client, binding = ASSETS). Não redefinir aqui.
 
 [observability]
 enabled = true

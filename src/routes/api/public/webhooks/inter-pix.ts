@@ -16,6 +16,13 @@ interface InterWebhookPayload {
   pix?: InterPixEvent[];
 }
 
+function timingSafeEqualStr(a: string, b: string): boolean {
+  if (a.length !== b.length) return false;
+  let diff = 0;
+  for (let i = 0; i < a.length; i++) diff |= a.charCodeAt(i) ^ b.charCodeAt(i);
+  return diff === 0;
+}
+
 async function handle(request: Request): Promise<Response> {
   const secret = process.env.INTER_WEBHOOK_SECRET;
   if (secret) {
@@ -24,7 +31,7 @@ async function handle(request: Request): Promise<Response> {
       request.headers.get("x-webhook-secret") ??
       url.searchParams.get("secret") ??
       "";
-    if (provided !== secret) {
+    if (!timingSafeEqualStr(provided, secret)) {
       return new Response("Unauthorized", { status: 401 });
     }
   }
@@ -35,14 +42,16 @@ async function handle(request: Request): Promise<Response> {
   } catch {
     return new Response("Invalid JSON", { status: 400 });
   }
-  const events = payload.pix ?? [];
+  const events = Array.isArray(payload?.pix) ? payload.pix : [];
   if (events.length === 0) return new Response("ok");
 
   const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
 
   for (const ev of events) {
-    const amount = Number(ev.valor);
-    if (!ev.txid || !Number.isFinite(amount) || amount <= 0) continue;
+    const paidAmount = Number(ev?.valor);
+    if (!ev?.txid || typeof ev.txid !== "string" || !Number.isFinite(paidAmount) || paidAmount <= 0) {
+      continue;
+    }
 
     const { data: order, error: findErr } = await supabaseAdmin
       .from("payment_orders")
@@ -55,23 +64,39 @@ async function handle(request: Request): Promise<Response> {
     }
     if (!order) {
       console.warn("[inter-pix] txid não encontrado:", ev.txid);
+      // 2xx to avoid retries for txids that don't belong to this app.
       continue;
     }
     if (order.status === "paid") continue; // idempotência
 
-    const { error: updErr } = await supabaseAdmin
+    // Conditional UPDATE + row count check = atomic idempotência.
+    // Concurrent webhooks: apenas UMA UPDATE afeta a linha (pending -> paid);
+    // as demais retornam array vazio e não creditam.
+    const orderAmount = Number(order.amount);
+    if (Number.isFinite(orderAmount) && Math.abs(orderAmount - paidAmount) > 0.01) {
+      console.warn(
+        `[inter-pix] valor divergente para txid ${ev.txid}: pago=${paidAmount} esperado=${orderAmount}. Creditando valor da ordem.`,
+      );
+    }
+
+    const { data: updated, error: updErr } = await supabaseAdmin
       .from("payment_orders")
       .update({ status: "paid", paid_at: new Date().toISOString() })
       .eq("id", order.id)
-      .eq("status", "pending");
+      .eq("status", "pending")
+      .select("id");
     if (updErr) {
       console.error("[inter-pix] update error", updErr.message);
+      continue;
+    }
+    if (!updated || updated.length === 0) {
+      // Outra execução concorrente já processou este txid.
       continue;
     }
 
     const { error: creditErr } = await supabaseAdmin.rpc("wallet_credit", {
       _client_id: order.client_id,
-      _amount: amount,
+      _amount: orderAmount,
       _note: "Recarga PIX carteira",
     });
     if (creditErr) {
