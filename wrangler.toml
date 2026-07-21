@@ -1,0 +1,56 @@
+# PubGrowth AI — Cloudflare Workers deploy config.
+#
+# Este arquivo é a fonte da verdade para deploy self-hosted na sua conta
+# Cloudflare via GitHub + Wrangler. Nenhuma dependência da plataforma Lovable.
+#
+# Passos após clonar o repo (uma única vez):
+#   1. wrangler login
+#   2. wrangler mtls-certificate upload --cert cert.pem --key key.pem --name inter-pix
+#      -> copie o certificate_id retornado para [[mtls_certificates]] abaixo.
+#   3. wrangler kv namespace create INTER_TOKEN_CACHE
+#      -> copie o id retornado para [[kv_namespaces]] abaixo.
+#   4. wrangler secret put INTER_CLIENT_ID
+#      wrangler secret put INTER_CLIENT_SECRET
+#      wrangler secret put INTER_PIX_KEY
+#      wrangler secret put INTER_WEBHOOK_SECRET
+#      wrangler secret put SUPABASE_URL
+#      wrangler secret put SUPABASE_PUBLISHABLE_KEY
+#      wrangler secret put SUPABASE_SERVICE_ROLE_KEY
+#      (adicione outras secrets do app conforme necessário)
+#   5. bun install && bun run build && wrangler deploy
+
+name = "pubgrowthai"
+main = ".output/server/index.mjs"
+compatibility_date = "2025-07-01"
+compatibility_flags = ["nodejs_compat"]
+
+# ---------------------------------------------------------------------------
+# mTLS binding — apresenta o certificado do Banco Inter no handshake TLS.
+# Uploaded via `wrangler mtls-certificate upload`. NUNCA colocar PEM aqui.
+# Troca sandbox <-> produção: re-upload do certificado correspondente e
+# atualizar o certificate_id + a secret INTER_ENV (production/sandbox).
+# ---------------------------------------------------------------------------
+[[mtls_certificates]]
+binding = "INTER_MTLS"
+certificate_id = "REPLACE_WITH_CERT_ID"
+
+# ---------------------------------------------------------------------------
+# KV para cache do access_token OAuth do Inter (compartilhado entre isolates).
+# ---------------------------------------------------------------------------
+[[kv_namespaces]]
+binding = "INTER_TOKEN_CACHE"
+id = "REPLACE_WITH_KV_ID"
+
+# ---------------------------------------------------------------------------
+# Variáveis públicas (não-secretas). Secrets vão via `wrangler secret put`.
+# ---------------------------------------------------------------------------
+[vars]
+INTER_ENV = "sandbox"     # troque para "production" ao migrar
+
+# Servir estáticos do build TanStack Start (SPA + assets do SSR).
+[assets]
+directory = ".output/public"
+binding = "ASSETS"
+
+[observability]
+enabled = true
