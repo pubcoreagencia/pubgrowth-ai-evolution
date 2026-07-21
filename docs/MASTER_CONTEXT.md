@@ -124,7 +124,7 @@ Todas as functions autenticadas usam `.middleware([requireSupabaseAuth])`. Middl
 ## 7. Estado Atual / Pontos de Atenção
 
 - App roda 100% no runtime Workers (nenhum proxy externo).
-- Deploy contínuo depende de secrets configurados na Cloudflare (ver `docs/DEPLOY_CLOUDFLARE.md`): `SUPABASE_URL`, `SUPABASE_PUBLISHABLE_KEY`, `INTER_CLIENT_ID`, `INTER_CLIENT_SECRET`, `INTER_WEBHOOK_SECRET`, `INTER_ACCOUNT`. Certificado mTLS enviado via `wrangler mtls-certificate upload`.
+- Deploy contínuo depende de secrets configurados na Cloudflare (ver `docs/DEPLOY_CLOUDFLARE.md`): `SUPABASE_URL`, `SUPABASE_PUBLISHABLE_KEY`, `SUPABASE_SERVICE_ROLE_KEY`, `INTER_CLIENT_ID`, `INTER_CLIENT_SECRET`, `INTER_PIX_KEY`, `INTER_WEBHOOK_SECRET`. `INTER_ENV` fica em `[vars]` do `wrangler.toml`. Certificado mTLS enviado via `wrangler mtls-certificate upload`.
 - Não há testes automatizados ainda.
 - Sem observabilidade além dos logs do Cloudflare/Supabase.
 - Emails transacionais ainda usam remetente padrão do Supabase (sem domínio próprio).
