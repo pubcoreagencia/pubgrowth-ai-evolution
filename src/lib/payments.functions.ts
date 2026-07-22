@@ -2,12 +2,7 @@ import { createServerFn } from "@tanstack/react-start";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { z } from "zod";
 
-export type PaymentStatus =
-  | "pending"
-  | "paid"
-  | "expired"
-  | "cancelled"
-  | "requires_review";
+export type PaymentStatus = "pending" | "paid" | "expired" | "cancelled" | "requires_review";
 
 export interface PaymentOrder {
   id: string;
@@ -21,6 +16,7 @@ export interface PaymentOrder {
   expiresAt: string | null;
   paidAt: string | null;
   createdAt: string;
+  reconciliationError: string | null;
   clientName?: string | null;
 }
 
@@ -29,6 +25,36 @@ const toNum = (v: unknown): number => {
   const n = typeof v === "number" ? v : Number(v);
   return Number.isFinite(n) ? n : 0;
 };
+
+function sanitizePaymentError(error: unknown): string {
+  const message = error instanceof Error ? error.message : String(error);
+  return message.replace(/\s+/g, " ").slice(0, 500);
+}
+
+function randomAlphaNumeric(length: number): string {
+  const alphabet = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
+  const bytes = new Uint8Array(length);
+  if (globalThis.crypto?.getRandomValues) {
+    globalThis.crypto.getRandomValues(bytes);
+  } else {
+    for (let i = 0; i < bytes.length; i += 1) {
+      bytes[i] = Math.floor(Math.random() * 256);
+    }
+  }
+  return Array.from(bytes, (byte) => alphabet[byte % alphabet.length]).join("");
+}
+
+function createPixTxid(clientId: string): string {
+  const clientPart = clientId.replace(/-/g, "").slice(-8).toUpperCase();
+  const timePart = Date.now().toString(36).toUpperCase().padStart(8, "0").slice(-8);
+  return `PG${timePart}${clientPart}${randomAlphaNumeric(12)}`.slice(0, 35);
+}
+
+function isUniquePixTxidError(error: { code?: string; message?: string } | null): boolean {
+  return (
+    error?.code === "23505" && /payment_orders_pix_txid_key|pix_txid/i.test(error.message ?? "")
+  );
+}
 
 function mapRow(r: {
   id: string;
@@ -42,6 +68,7 @@ function mapRow(r: {
   expires_at: string | null;
   paid_at: string | null;
   created_at: string;
+  reconciliation_error: string | null;
   clients?: { name: string } | null;
 }): PaymentOrder {
   return {
@@ -56,6 +83,7 @@ function mapRow(r: {
     expiresAt: r.expires_at,
     paidAt: r.paid_at,
     createdAt: r.created_at,
+    reconciliationError: r.reconciliation_error,
     clientName: r.clients?.name ?? null,
   };
 }
@@ -86,33 +114,66 @@ export const createMyPixOrderFn = createServerFn({ method: "POST" })
     const { interPixProvider } = await import("./payment-provider/inter-pix.server");
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
 
-    const txid = ("PG" + link.client_id.replace(/-/g, "") + Date.now().toString(36))
-      .slice(0, 35)
-      .toUpperCase();
+    let txid = createPixTxid(link.client_id);
+    let inserted: Parameters<typeof mapRow>[0] | null = null;
+    let lastInsertError: { code?: string; message?: string } | null = null;
 
-    const charge = await interPixProvider.createPixCharge({
-      txid,
-      amount: data.amount,
-      description: `Recarga carteira ${client?.name ?? "cliente"}`.slice(0, 140),
-    });
+    for (let attempt = 0; attempt < 5; attempt += 1) {
+      txid = createPixTxid(link.client_id);
+      const { data: row, error: insertError } = await supabaseAdmin
+        .from("payment_orders")
+        .insert({
+          user_id: context.userId,
+          client_id: link.client_id,
+          amount: data.amount,
+          status: "pending",
+          pix_txid: txid,
+        })
+        .select("*, clients(name)")
+        .single();
 
-    const { data: inserted, error } = await supabaseAdmin
-      .from("payment_orders")
-      .insert({
-        user_id: context.userId,
-        client_id: link.client_id,
+      if (!insertError) {
+        inserted = row;
+        break;
+      }
+      if (!isUniquePixTxidError(insertError)) throw new Error(insertError.message);
+      lastInsertError = insertError;
+    }
+
+    if (!inserted) {
+      throw new Error(lastInsertError?.message ?? "Nao foi possivel criar a cobranca PIX.");
+    }
+
+    try {
+      const charge = await interPixProvider.createPixCharge({
+        txid,
         amount: data.amount,
-        status: "pending",
-        pix_txid: charge.txid,
-        pix_qrcode: charge.qrcodeBase64,
-        pix_copy_paste: charge.copyPaste,
-        external_payment_id: charge.externalId,
-        expires_at: charge.expiresAt,
-      })
-      .select("*, clients(name)")
-      .single();
-    if (error) throw new Error(error.message);
-    return mapRow(inserted);
+        description: `Recarga carteira ${client?.name ?? "cliente"}`.slice(0, 140),
+      });
+
+      const { data: updated, error: updateError } = await supabaseAdmin
+        .from("payment_orders")
+        .update({
+          pix_txid: charge.txid,
+          pix_qrcode: charge.qrcodeBase64,
+          pix_copy_paste: charge.copyPaste,
+          external_payment_id: charge.externalId,
+          expires_at: charge.expiresAt,
+          reconciliation_error: null,
+        })
+        .eq("id", inserted.id)
+        .select("*, clients(name)")
+        .single();
+      if (updateError) throw new Error(updateError.message);
+      return mapRow(updated);
+    } catch (error) {
+      const safeMessage = sanitizePaymentError(error);
+      await supabaseAdmin
+        .from("payment_orders")
+        .update({ reconciliation_error: safeMessage })
+        .eq("id", inserted.id);
+      throw new Error(safeMessage);
+    }
   });
 
 export const getPaymentOrderFn = createServerFn({ method: "GET" })

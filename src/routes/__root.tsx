@@ -16,6 +16,7 @@ import { supabase } from "@/integrations/supabase/client";
 import {
   isLikelySupabasePublishableKey,
   isLikelySupabaseUrl,
+  normalizeSupabaseEnvValue,
 } from "@/integrations/supabase/config";
 
 function NotFoundComponent() {
@@ -167,8 +168,8 @@ function RootShell({ children }: { children: ReactNode }) {
 function getSupabaseRuntimeConfigScript(): string | null {
   if (typeof process === "undefined") return null;
 
-  const supabaseUrl = process.env.SUPABASE_URL;
-  const supabasePublishableKey = process.env.SUPABASE_PUBLISHABLE_KEY;
+  const supabaseUrl = normalizeSupabaseEnvValue(process.env.SUPABASE_URL);
+  const supabasePublishableKey = normalizeSupabaseEnvValue(process.env.SUPABASE_PUBLISHABLE_KEY);
   if (
     !isLikelySupabaseUrl(supabaseUrl) ||
     !isLikelySupabasePublishableKey(supabasePublishableKey)

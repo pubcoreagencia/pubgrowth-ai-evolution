@@ -18,7 +18,12 @@ export const Route = createFileRoute("/_authenticated")({
       _user_id: data.user.id,
       _role: "client",
     });
-    if (isClient) throw redirect({ to: "/client-portal" });
+    if (isClient) {
+      if (data.user.user_metadata?.password_setup_required === true) {
+        throw redirect({ to: "/auth/set-password" });
+      }
+      throw redirect({ to: "/client-portal" });
+    }
     return { user: data.user };
   },
   component: AuthenticatedLayout,

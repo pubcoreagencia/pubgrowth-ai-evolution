@@ -4,7 +4,7 @@ export type SupabaseRuntimeConfig = {
 };
 
 export function isLikelySupabaseUrl(value: string | undefined): value is string {
-  const trimmed = value?.trim();
+  const trimmed = normalizeSupabaseEnvValue(value);
   if (!trimmed) return false;
 
   try {
@@ -16,7 +16,7 @@ export function isLikelySupabaseUrl(value: string | undefined): value is string 
 }
 
 export function isLikelySupabasePublishableKey(value: string | undefined): value is string {
-  const trimmed = value?.trim();
+  const trimmed = normalizeSupabaseEnvValue(value);
   if (!trimmed || hasControlCharacter(trimmed)) return false;
 
   return (
@@ -37,5 +37,17 @@ export function firstValidSupabaseValue(
   values: Array<string | undefined>,
   isValid: (value: string | undefined) => value is string,
 ): string | undefined {
-  return values.map((value) => value?.trim()).find(isValid);
+  return values.map(normalizeSupabaseEnvValue).find(isValid);
+}
+
+export function normalizeSupabaseEnvValue(value: string | undefined): string | undefined {
+  let normalized = value?.replace(/^\uFEFF/, "").trim();
+  if (
+    normalized &&
+    ((normalized.startsWith('"') && normalized.endsWith('"')) ||
+      (normalized.startsWith("'") && normalized.endsWith("'")))
+  ) {
+    normalized = normalized.slice(1, -1).trim();
+  }
+  return normalized || undefined;
 }

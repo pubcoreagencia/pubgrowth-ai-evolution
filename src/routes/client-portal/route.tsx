@@ -11,6 +11,9 @@ export const Route = createFileRoute("/client-portal")({
   beforeLoad: async () => {
     const { data, error } = await supabase.auth.getUser();
     if (error || !data.user) throw redirect({ to: "/auth" });
+    if (data.user.user_metadata?.password_setup_required === true) {
+      throw redirect({ to: "/auth/set-password" });
+    }
     const { data: isClient } = await supabase.rpc("has_role", {
       _user_id: data.user.id,
       _role: "client",

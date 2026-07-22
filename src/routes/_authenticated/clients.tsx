@@ -1,7 +1,12 @@
-import { createFileRoute, Link } from "@tanstack/react-router";
+import { createFileRoute, Link, Outlet, useNavigate, useRouterState } from "@tanstack/react-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
-import { listClientsFn, createClientFn, deleteClientFn, type Client } from "@/lib/clients.functions";
+import {
+  listClientsFn,
+  createClientFn,
+  deleteClientFn,
+  type Client,
+} from "@/lib/clients.functions";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -29,6 +34,8 @@ export const Route = createFileRoute("/_authenticated/clients")({
 
 function ClientsPage() {
   const qc = useQueryClient();
+  const navigate = useNavigate();
+  const pathname = useRouterState({ select: (r) => r.location.pathname });
   const { data: clients = [] } = useQuery({
     queryKey: ["clients"],
     queryFn: () => listClientsFn(),
@@ -72,6 +79,10 @@ function ClientsPage() {
       toast.error(err instanceof Error ? err.message : "Erro ao remover");
     }
   };
+
+  if (pathname.startsWith("/clients/")) {
+    return <Outlet />;
+  }
 
   return (
     <div className="mx-auto max-w-6xl px-4 py-8 md:py-10">
@@ -132,7 +143,11 @@ function ClientsPage() {
                   </TableHeader>
                   <TableBody>
                     {clients.map((c) => (
-                      <TableRow key={c.id}>
+                      <TableRow
+                        key={c.id}
+                        className="cursor-pointer"
+                        onClick={() => navigate({ to: "/clients/$id", params: { id: c.id } })}
+                      >
                         <TableCell className="font-medium">{c.name}</TableCell>
                         <TableCell className="text-muted-foreground">{c.company ?? "—"}</TableCell>
                         <TableCell className="text-muted-foreground">{c.segment ?? "—"}</TableCell>
@@ -146,7 +161,10 @@ function ClientsPage() {
                             <Button
                               size="icon"
                               variant="ghost"
-                              onClick={() => onDelete(c.id)}
+                              onClick={(event) => {
+                                event.stopPropagation();
+                                onDelete(c.id);
+                              }}
                               aria-label="Remover cliente"
                             >
                               <Trash2 className="h-4 w-4" />

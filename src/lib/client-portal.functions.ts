@@ -70,6 +70,11 @@ const toNum = (v: unknown): number => {
   return Number.isFinite(n) ? n : 0;
 };
 
+const passwordSetupMetadata = {
+  password_setup_required: true,
+  invited_to: "client_portal",
+};
+
 /**
  * Loads everything the client portal shows for the currently signed-in
  * client user. RLS scopes rows to their own client_id — the server fn
@@ -102,10 +107,7 @@ export const getMyPortalDataFn = createServerFn({ method: "GET" })
         )
         .eq("is_active", true)
         .order("created_at", { ascending: false }),
-      supabase
-        .from("client_wallets")
-        .select("balance, currency, updated_at")
-        .maybeSingle(),
+      supabase.from("client_wallets").select("balance, currency, updated_at").maybeSingle(),
       supabase
         .from("wallet_ledger")
         .select("*, campaigns(campaign_name)")
@@ -239,9 +241,7 @@ export const getMyRoleFn = createServerFn({ method: "GET" })
 
 export const getClientUserFn = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((i: { clientId: string }) =>
-    z.object({ clientId: z.string().uuid() }).parse(i),
-  )
+  .inputValidator((i: { clientId: string }) => z.object({ clientId: z.string().uuid() }).parse(i))
   .handler(
     async ({
       context,
@@ -302,6 +302,7 @@ export const inviteClientUserFn = createServerFn({ method: "POST" })
 
     // Try to find existing auth user by email
     let userId: string | null = null;
+    let shouldSendPasswordReset = false;
     const { data: list } = await supabaseAdmin.auth.admin.listUsers({
       page: 1,
       perPage: 200,
@@ -311,11 +312,22 @@ export const inviteClientUserFn = createServerFn({ method: "POST" })
     );
     if (found) {
       userId = found.id;
+      shouldSendPasswordReset = true;
+      const { error: metadataErr } = await supabaseAdmin.auth.admin.updateUserById(userId, {
+        user_metadata: {
+          ...(found.user_metadata ?? {}),
+          ...passwordSetupMetadata,
+        },
+      });
+      if (metadataErr) throw new Error(metadataErr.message);
     } else {
-      const { data: invited, error: inviteErr } =
-        await supabaseAdmin.auth.admin.inviteUserByEmail(data.email, {
+      const { data: invited, error: inviteErr } = await supabaseAdmin.auth.admin.inviteUserByEmail(
+        data.email,
+        {
+          data: passwordSetupMetadata,
           redirectTo: data.redirectTo,
-        });
+        },
+      );
       if (inviteErr) throw new Error(inviteErr.message);
       userId = invited.user?.id ?? null;
     }
@@ -346,14 +358,67 @@ export const inviteClientUserFn = createServerFn({ method: "POST" })
       { onConflict: "user_id" },
     );
 
+    if (shouldSendPasswordReset) {
+      const { error: resetErr } = await supabaseAdmin.auth.resetPasswordForEmail(data.email, {
+        redirectTo: data.redirectTo,
+      });
+      if (resetErr) throw new Error(resetErr.message);
+    }
+
+    return { ok: true };
+  });
+
+export const sendClientPasswordSetupFn = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((i: { clientId: string; redirectTo?: string }) =>
+    z
+      .object({
+        clientId: z.string().uuid(),
+        redirectTo: z.string().url().optional(),
+      })
+      .parse(i),
+  )
+  .handler(async ({ context, data }) => {
+    const { data: isAdmin } = await context.supabase.rpc("has_role", {
+      _user_id: context.userId,
+      _role: "admin",
+    });
+    if (!isAdmin) throw new Error("Apenas administradores podem enviar link de senha.");
+
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { data: row, error } = await supabaseAdmin
+      .from("client_users")
+      .select("user_id")
+      .eq("client_id", data.clientId)
+      .maybeSingle();
+    if (error) throw new Error(error.message);
+    if (!row) throw new Error("Este cliente ainda nao possui acesso vinculado.");
+
+    const { data: userInfo, error: userErr } = await supabaseAdmin.auth.admin.getUserById(
+      row.user_id,
+    );
+    if (userErr) throw new Error(userErr.message);
+    const email = userInfo.user?.email;
+    if (!email) throw new Error("Usuario vinculado nao possui e-mail.");
+
+    const { error: metadataErr } = await supabaseAdmin.auth.admin.updateUserById(row.user_id, {
+      user_metadata: {
+        ...(userInfo.user.user_metadata ?? {}),
+        ...passwordSetupMetadata,
+      },
+    });
+    if (metadataErr) throw new Error(metadataErr.message);
+
+    const { error: resetErr } = await supabaseAdmin.auth.resetPasswordForEmail(email, {
+      redirectTo: data.redirectTo,
+    });
+    if (resetErr) throw new Error(resetErr.message);
     return { ok: true };
   });
 
 export const revokeClientUserFn = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((i: { clientId: string }) =>
-    z.object({ clientId: z.string().uuid() }).parse(i),
-  )
+  .inputValidator((i: { clientId: string }) => z.object({ clientId: z.string().uuid() }).parse(i))
   .handler(async ({ context, data }) => {
     const { data: isAdmin } = await context.supabase.rpc("has_role", {
       _user_id: context.userId,
@@ -370,10 +435,6 @@ export const revokeClientUserFn = createServerFn({ method: "POST" })
     if (!row) return { ok: true };
 
     await supabaseAdmin.from("client_users").delete().eq("client_id", data.clientId);
-    await supabaseAdmin
-      .from("user_roles")
-      .delete()
-      .eq("user_id", row.user_id)
-      .eq("role", "client");
+    await supabaseAdmin.from("user_roles").delete().eq("user_id", row.user_id).eq("role", "client");
     return { ok: true };
   });

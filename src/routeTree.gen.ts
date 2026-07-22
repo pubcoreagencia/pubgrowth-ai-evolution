@@ -15,6 +15,7 @@ import { Route as AuthenticatedRouteRouteImport } from './routes/_authenticated/
 import { Route as ClientPortalIndexRouteImport } from './routes/client-portal/index'
 import { Route as AuthenticatedIndexRouteImport } from './routes/_authenticated/index'
 import { Route as ClientPortalWalletRouteImport } from './routes/client-portal/wallet'
+import { Route as AuthSetPasswordRouteImport } from './routes/auth.set-password'
 import { Route as AuthenticatedSettingsRouteImport } from './routes/_authenticated/settings'
 import { Route as AuthenticatedClientsRouteImport } from './routes/_authenticated/clients'
 import { Route as AuthenticatedCampaignsIndexRouteImport } from './routes/_authenticated/campaigns.index'
@@ -54,6 +55,11 @@ const ClientPortalWalletRoute = ClientPortalWalletRouteImport.update({
   id: '/wallet',
   path: '/wallet',
   getParentRoute: () => ClientPortalRouteRoute,
+} as any)
+const AuthSetPasswordRoute = AuthSetPasswordRouteImport.update({
+  id: '/set-password',
+  path: '/set-password',
+  getParentRoute: () => AuthRoute,
 } as any)
 const AuthenticatedSettingsRoute = AuthenticatedSettingsRouteImport.update({
   id: '/settings',
@@ -116,9 +122,10 @@ const AuthenticatedClientsIdSocialProfileIdRoute =
 export interface FileRoutesByFullPath {
   '/': typeof AuthenticatedIndexRoute
   '/client-portal': typeof ClientPortalRouteRouteWithChildren
-  '/auth': typeof AuthRoute
+  '/auth': typeof AuthRouteWithChildren
   '/clients': typeof AuthenticatedClientsRouteWithChildren
   '/settings': typeof AuthenticatedSettingsRoute
+  '/auth/set-password': typeof AuthSetPasswordRoute
   '/client-portal/wallet': typeof ClientPortalWalletRoute
   '/client-portal/': typeof ClientPortalIndexRoute
   '/admin/financial': typeof AuthenticatedAdminFinancialRoute
@@ -131,9 +138,10 @@ export interface FileRoutesByFullPath {
   '/clients/$id/social/$profileId': typeof AuthenticatedClientsIdSocialProfileIdRoute
 }
 export interface FileRoutesByTo {
-  '/auth': typeof AuthRoute
+  '/auth': typeof AuthRouteWithChildren
   '/clients': typeof AuthenticatedClientsRouteWithChildren
   '/settings': typeof AuthenticatedSettingsRoute
+  '/auth/set-password': typeof AuthSetPasswordRoute
   '/client-portal/wallet': typeof ClientPortalWalletRoute
   '/': typeof AuthenticatedIndexRoute
   '/client-portal': typeof ClientPortalIndexRoute
@@ -150,9 +158,10 @@ export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/_authenticated': typeof AuthenticatedRouteRouteWithChildren
   '/client-portal': typeof ClientPortalRouteRouteWithChildren
-  '/auth': typeof AuthRoute
+  '/auth': typeof AuthRouteWithChildren
   '/_authenticated/clients': typeof AuthenticatedClientsRouteWithChildren
   '/_authenticated/settings': typeof AuthenticatedSettingsRoute
+  '/auth/set-password': typeof AuthSetPasswordRoute
   '/client-portal/wallet': typeof ClientPortalWalletRoute
   '/_authenticated/': typeof AuthenticatedIndexRoute
   '/client-portal/': typeof ClientPortalIndexRoute
@@ -173,6 +182,7 @@ export interface FileRouteTypes {
     | '/auth'
     | '/clients'
     | '/settings'
+    | '/auth/set-password'
     | '/client-portal/wallet'
     | '/client-portal/'
     | '/admin/financial'
@@ -188,6 +198,7 @@ export interface FileRouteTypes {
     | '/auth'
     | '/clients'
     | '/settings'
+    | '/auth/set-password'
     | '/client-portal/wallet'
     | '/'
     | '/client-portal'
@@ -206,6 +217,7 @@ export interface FileRouteTypes {
     | '/auth'
     | '/_authenticated/clients'
     | '/_authenticated/settings'
+    | '/auth/set-password'
     | '/client-portal/wallet'
     | '/_authenticated/'
     | '/client-portal/'
@@ -222,7 +234,7 @@ export interface FileRouteTypes {
 export interface RootRouteChildren {
   AuthenticatedRouteRoute: typeof AuthenticatedRouteRouteWithChildren
   ClientPortalRouteRoute: typeof ClientPortalRouteRouteWithChildren
-  AuthRoute: typeof AuthRoute
+  AuthRoute: typeof AuthRouteWithChildren
   ApiPublicWebhooksInterPixRoute: typeof ApiPublicWebhooksInterPixRoute
 }
 
@@ -269,6 +281,13 @@ declare module '@tanstack/react-router' {
       fullPath: '/client-portal/wallet'
       preLoaderRoute: typeof ClientPortalWalletRouteImport
       parentRoute: typeof ClientPortalRouteRoute
+    }
+    '/auth/set-password': {
+      id: '/auth/set-password'
+      path: '/set-password'
+      fullPath: '/auth/set-password'
+      preLoaderRoute: typeof AuthSetPasswordRouteImport
+      parentRoute: typeof AuthRoute
     }
     '/_authenticated/settings': {
       id: '/_authenticated/settings'
@@ -407,10 +426,20 @@ const ClientPortalRouteRouteChildren: ClientPortalRouteRouteChildren = {
 const ClientPortalRouteRouteWithChildren =
   ClientPortalRouteRoute._addFileChildren(ClientPortalRouteRouteChildren)
 
+interface AuthRouteChildren {
+  AuthSetPasswordRoute: typeof AuthSetPasswordRoute
+}
+
+const AuthRouteChildren: AuthRouteChildren = {
+  AuthSetPasswordRoute: AuthSetPasswordRoute,
+}
+
+const AuthRouteWithChildren = AuthRoute._addFileChildren(AuthRouteChildren)
+
 const rootRouteChildren: RootRouteChildren = {
   AuthenticatedRouteRoute: AuthenticatedRouteRouteWithChildren,
   ClientPortalRouteRoute: ClientPortalRouteRouteWithChildren,
-  AuthRoute: AuthRoute,
+  AuthRoute: AuthRouteWithChildren,
   ApiPublicWebhooksInterPixRoute: ApiPublicWebhooksInterPixRoute,
 }
 export const routeTree = rootRouteImport

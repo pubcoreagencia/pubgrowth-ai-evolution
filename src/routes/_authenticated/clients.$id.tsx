@@ -1,4 +1,4 @@
-import { createFileRoute, Link } from "@tanstack/react-router";
+import { createFileRoute, Link, Outlet, useRouterState } from "@tanstack/react-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 import { getClientFn } from "@/lib/clients.functions";
@@ -33,11 +33,23 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import { toast } from "sonner";
-import { ArrowLeft, PlusCircle, Trash2, LineChart, Archive, ArchiveRestore, Wallet, UserPlus, ShieldOff, Mail } from "lucide-react";
+import {
+  ArrowLeft,
+  PlusCircle,
+  Trash2,
+  LineChart,
+  Archive,
+  ArchiveRestore,
+  Wallet,
+  UserPlus,
+  ShieldOff,
+  Mail,
+} from "lucide-react";
 import {
   getClientUserFn,
   inviteClientUserFn,
   revokeClientUserFn,
+  sendClientPasswordSetupFn,
 } from "@/lib/client-portal.functions";
 
 export const Route = createFileRoute("/_authenticated/clients/$id")({
@@ -59,6 +71,7 @@ const platformColor: Record<SocialPlatform, string> = {
 
 function ClientDetailPage() {
   const { id } = Route.useParams();
+  const pathname = useRouterState({ select: (r) => r.location.pathname });
   const qc = useQueryClient();
   const { data: client } = useQuery({
     queryKey: ["client", id],
@@ -131,15 +144,19 @@ function ClientDetailPage() {
   });
   const [inviteEmail, setInviteEmail] = useState("");
   const [inviting, setInviting] = useState(false);
-  const invalidateAccess = () =>
-    qc.invalidateQueries({ queryKey: ["client-access", id] });
+  const [sendingPasswordSetup, setSendingPasswordSetup] = useState(false);
+  const invalidateAccess = () => qc.invalidateQueries({ queryKey: ["client-access", id] });
+  const passwordSetupRedirectTo =
+    typeof window !== "undefined" ? `${window.location.origin}/auth/set-password` : undefined;
 
   const onInvite = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     if (!inviteEmail.trim()) return;
     setInviting(true);
     try {
-      await inviteClientUserFn({ data: { clientId: id, email: inviteEmail.trim() } });
+      await inviteClientUserFn({
+        data: { clientId: id, email: inviteEmail.trim(), redirectTo: passwordSetupRedirectTo },
+      });
       toast.success("Convite enviado ao cliente");
       setInviteEmail("");
       invalidateAccess();
@@ -147,6 +164,20 @@ function ClientDetailPage() {
       toast.error(err instanceof Error ? err.message : "Falha ao convidar");
     } finally {
       setInviting(false);
+    }
+  };
+
+  const onSendPasswordSetup = async () => {
+    setSendingPasswordSetup(true);
+    try {
+      await sendClientPasswordSetupFn({
+        data: { clientId: id, redirectTo: passwordSetupRedirectTo },
+      });
+      toast.success("Link de senha enviado ao cliente");
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Falha ao enviar link");
+    } finally {
+      setSendingPasswordSetup(false);
     }
   };
 
@@ -160,6 +191,10 @@ function ClientDetailPage() {
       toast.error(err instanceof Error ? err.message : "Erro");
     }
   };
+
+  if (pathname.startsWith(`/clients/${id}/`)) {
+    return <Outlet />;
+  }
 
   return (
     <div className="mx-auto max-w-6xl px-4 py-8 md:py-10">
@@ -188,66 +223,66 @@ function ClientDetailPage() {
             </Link>
           </Button>
           <Dialog open={open} onOpenChange={setOpen}>
-          <DialogTrigger asChild>
-            <Button className="gap-2">
-              <PlusCircle className="h-4 w-4" /> Adicionar perfil
-            </Button>
-          </DialogTrigger>
-          <DialogContent>
-            <DialogHeader>
-              <DialogTitle>Novo perfil social</DialogTitle>
-            </DialogHeader>
-            <form onSubmit={onCreate} className="space-y-3">
-              <div className="space-y-1.5">
-                <Label>Plataforma</Label>
-                <Select value={platform} onValueChange={(v) => setPlatform(v as SocialPlatform)}>
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {SOCIAL_PLATFORMS.map((p) => (
-                      <SelectItem key={p.value} value={p.value}>
-                        {p.label}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="grid grid-cols-2 gap-3">
+            <DialogTrigger asChild>
+              <Button className="gap-2">
+                <PlusCircle className="h-4 w-4" /> Adicionar perfil
+              </Button>
+            </DialogTrigger>
+            <DialogContent>
+              <DialogHeader>
+                <DialogTitle>Novo perfil social</DialogTitle>
+              </DialogHeader>
+              <form onSubmit={onCreate} className="space-y-3">
                 <div className="space-y-1.5">
-                  <Label htmlFor="profileName">Nome do perfil*</Label>
-                  <Input id="profileName" name="profileName" required />
+                  <Label>Plataforma</Label>
+                  <Select value={platform} onValueChange={(v) => setPlatform(v as SocialPlatform)}>
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {SOCIAL_PLATFORMS.map((p) => (
+                        <SelectItem key={p.value} value={p.value}>
+                          {p.label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="space-y-1.5">
+                    <Label htmlFor="profileName">Nome do perfil*</Label>
+                    <Input id="profileName" name="profileName" required />
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label htmlFor="username">Username*</Label>
+                    <Input id="username" name="username" required placeholder="@handle" />
+                  </div>
                 </div>
                 <div className="space-y-1.5">
-                  <Label htmlFor="username">Username*</Label>
-                  <Input id="username" name="username" required placeholder="@handle" />
+                  <Label htmlFor="profileUrl">URL</Label>
+                  <Input id="profileUrl" name="profileUrl" type="url" />
                 </div>
-              </div>
-              <div className="space-y-1.5">
-                <Label htmlFor="profileUrl">URL</Label>
-                <Input id="profileUrl" name="profileUrl" type="url" />
-              </div>
-              <div className="space-y-1.5">
-                <Label htmlFor="avatarUrl">URL do avatar</Label>
-                <Input id="avatarUrl" name="avatarUrl" type="url" />
-              </div>
-              <div className="space-y-1.5">
-                <Label htmlFor="currentFollowers">Seguidores atuais</Label>
-                <Input
-                  id="currentFollowers"
-                  name="currentFollowers"
-                  type="number"
-                  min={0}
-                  defaultValue={0}
-                />
-              </div>
-              <DialogFooter>
-                <Button type="submit" disabled={saving}>
-                  Adicionar
-                </Button>
-              </DialogFooter>
-            </form>
-          </DialogContent>
+                <div className="space-y-1.5">
+                  <Label htmlFor="avatarUrl">URL do avatar</Label>
+                  <Input id="avatarUrl" name="avatarUrl" type="url" />
+                </div>
+                <div className="space-y-1.5">
+                  <Label htmlFor="currentFollowers">Seguidores atuais</Label>
+                  <Input
+                    id="currentFollowers"
+                    name="currentFollowers"
+                    type="number"
+                    min={0}
+                    defaultValue={0}
+                  />
+                </div>
+                <DialogFooter>
+                  <Button type="submit" disabled={saving}>
+                    Adicionar
+                  </Button>
+                </DialogFooter>
+              </form>
+            </DialogContent>
           </Dialog>
         </div>
       </div>
@@ -306,13 +341,33 @@ function ClientDetailPage() {
                 <div className="flex items-center gap-2 text-sm">
                   <Mail className="h-4 w-4 text-muted-foreground" />
                   <span className="font-medium">{clientAccess.email}</span>
-                  <Badge variant="outline" className="border-emerald-500/50 text-emerald-600 dark:text-emerald-400">
+                  <Badge
+                    variant="outline"
+                    className="border-emerald-500/50 text-emerald-600 dark:text-emerald-400"
+                  >
                     Vinculado
                   </Badge>
                 </div>
-                <Button variant="ghost" size="sm" className="gap-1.5 text-destructive" onClick={onRevoke}>
-                  <ShieldOff className="h-4 w-4" /> Revogar
-                </Button>
+                <div className="flex flex-wrap gap-2">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="gap-1.5"
+                    onClick={onSendPasswordSetup}
+                    disabled={sendingPasswordSetup}
+                  >
+                    <Mail className="h-4 w-4" />
+                    {sendingPasswordSetup ? "Enviando..." : "Enviar link de senha"}
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="gap-1.5 text-destructive"
+                    onClick={onRevoke}
+                  >
+                    <ShieldOff className="h-4 w-4" /> Revogar
+                  </Button>
+                </div>
               </div>
             ) : (
               <form onSubmit={onInvite} className="flex flex-wrap items-end gap-3">
@@ -332,7 +387,8 @@ function ClientDetailPage() {
                   {inviting ? "Convidando…" : "Convidar cliente"}
                 </Button>
                 <p className="w-full text-xs text-muted-foreground">
-                  O cliente receberá um e-mail para definir a senha e acessará apenas os dados desta conta.
+                  O cliente receberá um e-mail para definir a senha e acessará apenas os dados desta
+                  conta.
                 </p>
               </form>
             )}
@@ -362,9 +418,7 @@ function ProfileCard({
         <div className="flex items-center gap-3">
           <Avatar className="h-10 w-10">
             <AvatarImage src={profile.avatarUrl ?? undefined} alt={profile.username} />
-            <AvatarFallback>
-              {profile.username.slice(0, 2).toUpperCase()}
-            </AvatarFallback>
+            <AvatarFallback>{profile.username.slice(0, 2).toUpperCase()}</AvatarFallback>
           </Avatar>
           <div className="min-w-0 flex-1">
             <CardTitle className="truncate text-base">{profile.profileName}</CardTitle>

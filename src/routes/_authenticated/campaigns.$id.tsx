@@ -52,7 +52,7 @@ import {
   Users,
   Zap,
 } from "lucide-react";
-import { useMemo, type ReactNode } from "react";
+import { type ReactNode } from "react";
 
 export const Route = createFileRoute("/_authenticated/campaigns/$id")({
   component: CampaignDetail,
@@ -149,7 +149,7 @@ function CampaignDetail() {
   const embedId = getInstagramEmbedId(c.videoUrl);
   const report = buildExecutiveReport(c, e);
 
-  const trend = useMemo(() => {
+  const trend = (() => {
     const days = Math.max(1, c.days);
     const data: Array<{ day: string; investimento: number; views: number; cliques: number }> = [];
     const dInvest = e.investment / days;
@@ -164,7 +164,7 @@ function CampaignDetail() {
       });
     }
     return data;
-  }, [c.days, e.investment, e.views, e.clicks]);
+  })();
 
   const engagementBreakdown = [
     { name: "Curtidas", value: Math.round(e.likes) },

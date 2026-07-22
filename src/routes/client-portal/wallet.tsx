@@ -41,7 +41,10 @@ const statusLabel: Record<PaymentOrder["status"], string> = {
   requires_review: "Em revisão",
 };
 
-const statusVariant: Record<PaymentOrder["status"], "default" | "secondary" | "outline" | "destructive"> = {
+const statusVariant: Record<
+  PaymentOrder["status"],
+  "default" | "secondary" | "outline" | "destructive"
+> = {
   pending: "secondary",
   paid: "default",
   expired: "outline",
@@ -49,9 +52,28 @@ const statusVariant: Record<PaymentOrder["status"], "default" | "secondary" | "o
   requires_review: "outline",
 };
 
+function getOrderStatusLabel(order: PaymentOrder): string {
+  if (order.status === "pending" && order.reconciliationError) {
+    return "Falha ao gerar PIX";
+  }
+  return statusLabel[order.status];
+}
+
+function getOrderStatusVariant(
+  order: PaymentOrder,
+): "default" | "secondary" | "outline" | "destructive" {
+  if (order.status === "pending" && order.reconciliationError) {
+    return "destructive";
+  }
+  return statusVariant[order.status];
+}
+
 function ClientWalletPage() {
   const qc = useQueryClient();
-  const portalQ = useQuery({ queryKey: ["client-portal-data"], queryFn: () => getMyPortalDataFn() });
+  const portalQ = useQuery({
+    queryKey: ["client-portal-data"],
+    queryFn: () => getMyPortalDataFn(),
+  });
   const ordersQ = useQuery({
     queryKey: ["my-payment-orders"],
     queryFn: () => listMyPaymentOrdersFn(),
@@ -72,7 +94,10 @@ function ClientWalletPage() {
       qc.invalidateQueries({ queryKey: ["my-payment-orders"] });
       toast.success("Cobrança PIX gerada. Escaneie o QR ou copie o código.");
     },
-    onError: (e: Error) => toast.error(e.message),
+    onError: (e: Error) => {
+      qc.invalidateQueries({ queryKey: ["my-payment-orders"] });
+      toast.error(e.message);
+    },
   });
 
   // Poll active order until settled
@@ -158,7 +183,7 @@ function ClientWalletPage() {
                   QR indisponível
                 </div>
               )}
-              <Badge variant={statusVariant[current.status]}>{statusLabel[current.status]}</Badge>
+              <Badge variant={getOrderStatusVariant(current)}>{getOrderStatusLabel(current)}</Badge>
             </div>
             <div className="space-y-3">
               <div>
@@ -183,7 +208,8 @@ function ClientWalletPage() {
                 </Button>
               </div>
               <p className="text-xs text-muted-foreground">
-                A carteira é atualizada automaticamente assim que o pagamento é confirmado pelo banco.
+                A carteira é atualizada automaticamente assim que o pagamento é confirmado pelo
+                banco.
               </p>
             </div>
           </CardContent>
@@ -211,7 +237,7 @@ function ClientWalletPage() {
                       <td className="py-2">{new Date(o.createdAt).toLocaleString("pt-BR")}</td>
                       <td className="py-2">{brl(o.amount)}</td>
                       <td className="py-2">
-                        <Badge variant={statusVariant[o.status]}>{statusLabel[o.status]}</Badge>
+                        <Badge variant={getOrderStatusVariant(o)}>{getOrderStatusLabel(o)}</Badge>
                       </td>
                     </tr>
                   ))}

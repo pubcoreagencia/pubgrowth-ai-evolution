@@ -1,152 +1,137 @@
-# Deploy self-hosted no Cloudflare Workers
+# Deploy Cloudflare Workers
 
-Este documento assume que você usa apenas suas próprias contas:
-**GitHub**, **Cloudflare**, **Supabase** e **Banco Inter PJ**. Não há
-dependência da plataforma Lovable em runtime.
+Este documento descreve o deploy self-hosted do PubGrowth AI na conta Cloudflare do projeto.
 
-## 1. Pré-requisitos
+## Estado Atual
 
-- Conta Cloudflare (plano Free basta — `mtls_certificates` está incluso).
-- Domínio opcional em Cloudflare (para custom domain).
-- Certificado + chave privada do Banco Inter (`cert.pem`, `key.pem`)
-  gerados na área do desenvolvedor do Inter.
-- Credenciais Supabase do seu projeto.
-- `bun` e `wrangler` locais:
-  ```bash
-  npm i -g wrangler
-  curl -fsSL https://bun.sh/install | bash
-  ```
+- Worker: `pubgrowthai`
+- Producao: `https://pubgrowthai.contato-pubcore.workers.dev`
+- Supabase correto: `rjhnfztjikifymxupagb`
+- Banco Inter atual: `INTER_ENV=sandbox`
+- Bindings importantes:
+  - `INTER_MTLS`
+  - `INTER_TOKEN_CACHE`
 
-## 2. Setup inicial (uma vez por ambiente)
+Nao coloque PEM, chave privada, tokens ou secrets neste repositorio.
 
-```bash
-# Login na sua conta Cloudflare
-wrangler login
+## Pre-Requisitos
 
-# Upload do certificado mTLS do Inter (sandbox OU produção)
-wrangler mtls-certificate upload \
-  --cert ./cert.pem \
-  --key ./key.pem \
-  --name inter-pix-sandbox
-# -> retorna certificate_id. Copie para wrangler.toml em [[mtls_certificates]].
+- Node/npm instalados.
+- Acesso ao repositorio GitHub `pubcoreagencia/pubgrowth-ai-evolution`.
+- Acesso autorizado a Cloudflare.
+- Acesso autorizado ao Supabase correto.
+- Credenciais/certificado Banco Inter adequados ao ambiente alvo.
 
-# Criar KV namespace para cache do access_token OAuth
-wrangler kv namespace create INTER_TOKEN_CACHE
-# -> retorna id. Copie para wrangler.toml em [[kv_namespaces]].
-```
+## Variaveis e Secrets
 
-Edite `wrangler.toml` substituindo `REPLACE_WITH_CERT_ID` e
-`REPLACE_WITH_KV_ID` pelos valores retornados.
+Secrets Cloudflare necessarias:
 
-## 3. Secrets
-
-```bash
-# Banco Inter
+```powershell
+wrangler secret put SUPABASE_URL
+wrangler secret put SUPABASE_PUBLISHABLE_KEY
+wrangler secret put SUPABASE_SERVICE_ROLE_KEY
 wrangler secret put INTER_CLIENT_ID
 wrangler secret put INTER_CLIENT_SECRET
 wrangler secret put INTER_PIX_KEY
 wrangler secret put INTER_WEBHOOK_SECRET
-
-# Supabase
-wrangler secret put SUPABASE_URL
-wrangler secret put SUPABASE_PUBLISHABLE_KEY
-wrangler secret put SUPABASE_SERVICE_ROLE_KEY
 ```
 
-`INTER_ENV` está em `[vars]` no `wrangler.toml` (não é secret).
+Variavel nao secreta no `wrangler.toml`:
 
-## 4. Deploy manual
-
-```bash
-bun install
-bun run build
-wrangler deploy
+```toml
+[vars]
+INTER_ENV = "sandbox"
 ```
 
-## 5. Deploy automatizado via GitHub Actions
+Para producao Banco Inter, trocar para `production` somente com autorizacao e com certificado/credenciais de producao.
 
-O workflow `.github/workflows/deploy.yml` já está configurado. No repositório
-GitHub, adicione dois secrets:
+## Bindings
 
-- `CLOUDFLARE_API_TOKEN` — crie em Cloudflare Dashboard → My Profile → API
-  Tokens → template "Edit Cloudflare Workers".
-- `CLOUDFLARE_ACCOUNT_ID` — visível no dashboard da conta.
+`INTER_MTLS` apresenta o certificado do Banco Inter na chamada HTTPS. O certificado e a chave privada devem ser enviados ao Cloudflare via Wrangler, nunca versionados.
 
-Todo push em `main` publica automaticamente.
-
-## 6. Configuração do webhook no Inter
-
-No portal do Banco Inter, configure o webhook para:
-
-```
-https://<seu-worker>.workers.dev/api/public/webhooks/inter-pix?secret=<INTER_WEBHOOK_SECRET>
+```powershell
+wrangler mtls-certificate upload --cert .\cert.pem --key .\key.pem --name inter-pix-sandbox
 ```
 
-Ou use header `x-webhook-secret`. O secret protege contra chamadas não
-autorizadas — o Inter também apresenta mTLS na chamada (você não precisa
-validar o mTLS reverso no Worker; a URL + secret bastam).
+`INTER_TOKEN_CACHE` guarda o token OAuth do Inter em KV para reduzir chamadas de token.
 
-### Teste rápido de rejeição do webhook
-
-Depois de publicar o Worker, valide que chamadas sem secret são bloqueadas:
-
-```bash
-# Sem secret → deve responder 401 Unauthorized
-curl -i -X POST https://<seu-worker>.workers.dev/api/public/webhooks/inter-pix \
-  -H 'content-type: application/json' -d '{"pix":[]}'
-
-# Com secret correto → deve responder 200 ok
-curl -i -X POST "https://<seu-worker>.workers.dev/api/public/webhooks/inter-pix?secret=$INTER_WEBHOOK_SECRET" \
-  -H 'content-type: application/json' -d '{"pix":[]}'
+```powershell
+wrangler kv namespace create INTER_TOKEN_CACHE
 ```
 
-## 7. Troca Sandbox → Produção
+Depois de criar ou trocar esses recursos, atualizar os IDs no `wrangler.toml` com cuidado.
 
-Zero alteração de código. Sequência:
+## Build Local
 
-```bash
-# 1. Upload do certificado de produção
-wrangler mtls-certificate upload \
-  --cert ./cert-prod.pem --key ./key-prod.pem \
-  --name inter-pix-prod
-
-# 2. Atualize wrangler.toml: certificate_id -> novo id de produção
-#    e vars.INTER_ENV = "production"
-
-# 3. Atualize as secrets de credencial (se o Inter emitiu novas)
-wrangler secret put INTER_CLIENT_ID
-wrangler secret put INTER_CLIENT_SECRET
-wrangler secret put INTER_PIX_KEY
-
-# 4. Redeploy
-wrangler deploy
+```powershell
+npm.cmd install
+npm.cmd exec -- eslint .
+npm.cmd run build
 ```
 
-## 8. Rotação/atualização futura do certificado
+## Deploy Manual
 
-```bash
-# Upload da nova versão
-wrangler mtls-certificate upload --cert new.pem --key new.key --name inter-pix-v2
-# -> pegue o novo certificate_id, atualize wrangler.toml, wrangler deploy
+Deploy requer autorizacao explicita.
 
-# Após confirmar produção estável, remova o antigo:
-wrangler mtls-certificate delete <old-cert-id>
+```powershell
+npm.cmd run build
+npm.cmd exec -- wrangler deploy
 ```
 
-## 9. Observabilidade
+Nao rode deploy se:
 
-`observability.enabled = true` no `wrangler.toml` liga logs no dashboard.
-Para tail em tempo real:
+- o build falhou;
+- ha secrets no diff;
+- o ambiente alvo nao foi confirmado;
+- houve mudanca de banco pendente;
+- houve troca de certificado/credenciais Inter sem validacao.
 
-```bash
-wrangler tail
+## GitHub Actions
+
+Se o projeto usar deploy automatico por push em `main`, os secrets do GitHub devem existir:
+
+- `CLOUDFLARE_API_TOKEN`
+- `CLOUDFLARE_ACCOUNT_ID`
+
+Confirme o workflow antes de assumir que o deploy automatico esta ativo.
+
+## Webhook Banco Inter
+
+Endpoint do app:
+
+```text
+https://pubgrowthai.contato-pubcore.workers.dev/api/public/webhooks/inter-pix
 ```
 
-## 10. Checklist final
+O webhook deve enviar o segredo configurado como `INTER_WEBHOOK_SECRET`, por query string ou header suportado pelo app.
 
-- [ ] `wrangler.toml` com `certificate_id` e KV `id` reais.
-- [ ] Todas as secrets do passo 3 configuradas via `wrangler secret put`.
-- [ ] Webhook do Inter apontando para o Worker publicado.
-- [ ] `INTER_ENV` correto (`sandbox` ou `production`).
-- [ ] GitHub Secrets `CLOUDFLARE_API_TOKEN` e `CLOUDFLARE_ACCOUNT_ID` (se
-      usar CI).
+Teste de rejeicao sem secret, somente quando autorizado:
+
+```powershell
+curl.exe -i -X POST https://pubgrowthai.contato-pubcore.workers.dev/api/public/webhooks/inter-pix -H "content-type: application/json" -d "{\"pix\":[]}"
+```
+
+Resposta esperada: `401 Unauthorized`.
+
+## Sandbox vs Producao Inter
+
+O ambiente atual e sandbox. O Inter informou ao usuario que o sandbox pode ter janela operacional ate 20h. Timeouts no OAuth fora dessa janela podem ser comportamento do sandbox.
+
+Em producao PIX deve operar 24/7, mas exige:
+
+- `INTER_ENV=production`;
+- certificado mTLS de producao;
+- credenciais de producao;
+- chave PIX valida no ambiente de producao;
+- webhook configurado para a URL de producao.
+
+## Checklist de Deploy
+
+- [ ] `npm.cmd exec -- eslint .` passou.
+- [ ] `npm.cmd run build` passou.
+- [ ] Nenhum secret aparece em `git diff`.
+- [ ] Ambiente alvo confirmado.
+- [ ] Supabase correto confirmado: `rjhnfztjikifymxupagb`.
+- [ ] `INTER_ENV` confirmado.
+- [ ] `INTER_MTLS` e `INTER_TOKEN_CACHE` confirmados.
+- [ ] Webhook Inter validado quando aplicavel.

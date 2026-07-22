@@ -24,7 +24,7 @@ interface InterBindings {
 let memToken: { value: string; expiresAt: number; env: InterEnv } | null = null;
 
 function getEnv(): InterEnv {
-  const e = (process.env.INTER_ENV ?? "sandbox").toLowerCase();
+  const e = normalizeEnvValue(process.env.INTER_ENV ?? "sandbox").toLowerCase();
   return e === "production" ? "production" : "sandbox";
 }
 
@@ -54,10 +54,52 @@ async function getBindings(): Promise<InterBindings> {
 }
 
 // AbortSignal.timeout equivalente compatível com Workers.
-function withTimeout(ms: number): AbortSignal {
+function normalizeEnvValue(value: string | undefined): string {
+  let normalized = value?.replace(/^\uFEFF/, "").trim() ?? "";
+  if (
+    (normalized.startsWith('"') && normalized.endsWith('"')) ||
+    (normalized.startsWith("'") && normalized.endsWith("'"))
+  ) {
+    normalized = normalized.slice(1, -1).trim();
+  }
+  return normalized;
+}
+
+function getRequiredEnv(name: string): string {
+  const value = normalizeEnvValue(process.env[name]);
+  if (!value) throw new Error(`${name} nao configurado.`);
+  return value;
+}
+
+function isAbortError(error: unknown): boolean {
+  return (
+    (error instanceof DOMException && error.name === "AbortError") ||
+    (error instanceof Error && /aborted/i.test(error.message))
+  );
+}
+
+async function interFetch(
+  bindings: InterBindings,
+  url: string,
+  init: RequestInit,
+  label: string,
+  timeoutMs = 12_000,
+): Promise<Response> {
   const ctrl = new AbortController();
-  setTimeout(() => ctrl.abort(), ms);
-  return ctrl.signal;
+  const timer = setTimeout(() => ctrl.abort(), timeoutMs);
+  try {
+    return await bindings.INTER_MTLS.fetch(url, { ...init, signal: ctrl.signal });
+  } catch (error) {
+    if (isAbortError(error)) {
+      throw new Error(
+        `Banco Inter nao respondeu a tempo (${label}). Tente novamente em alguns instantes.`,
+      );
+    }
+    const message = error instanceof Error ? error.message : String(error);
+    throw new Error(`Falha de comunicacao com Banco Inter (${label}): ${message}`);
+  } finally {
+    clearTimeout(timer);
+  }
 }
 
 async function readCachedToken(env: InterEnv, kv?: KVNamespace): Promise<string | null> {
@@ -104,11 +146,8 @@ async function getAccessToken(bindings: InterBindings): Promise<string> {
   const cached = await readCachedToken(env, bindings.INTER_TOKEN_CACHE);
   if (cached) return cached;
 
-  const clientId = process.env.INTER_CLIENT_ID;
-  const clientSecret = process.env.INTER_CLIENT_SECRET;
-  if (!clientId || !clientSecret) {
-    throw new Error("INTER_CLIENT_ID / INTER_CLIENT_SECRET não configurados.");
-  }
+  const clientId = getRequiredEnv("INTER_CLIENT_ID");
+  const clientSecret = getRequiredEnv("INTER_CLIENT_SECRET");
 
   const body = new URLSearchParams({
     client_id: clientId,
@@ -117,12 +156,16 @@ async function getAccessToken(bindings: InterBindings): Promise<string> {
     grant_type: "client_credentials",
   }).toString();
 
-  const res = await bindings.INTER_MTLS.fetch(`${baseUrl(env)}/oauth/v2/token`, {
-    method: "POST",
-    headers: { "Content-Type": "application/x-www-form-urlencoded" },
-    body,
-    signal: withTimeout(15_000),
-  });
+  const res = await interFetch(
+    bindings,
+    `${baseUrl(env)}/oauth/v2/token`,
+    {
+      method: "POST",
+      headers: { "Content-Type": "application/x-www-form-urlencoded" },
+      body,
+    },
+    "OAuth",
+  );
   if (!res.ok) {
     const text = await res.text();
     // Nunca loga client_id/secret; apenas status + trecho da resposta.
@@ -139,8 +182,7 @@ function toCurrency(amount: number): string {
 
 export const interPixProvider: PaymentProvider = {
   async createPixCharge(input: CreatePixChargeInput): Promise<PixCharge> {
-    const pixKey = process.env.INTER_PIX_KEY;
-    if (!pixKey) throw new Error("INTER_PIX_KEY não configurada.");
+    const pixKey = getRequiredEnv("INTER_PIX_KEY");
 
     const bindings = await getBindings();
     const env = getEnv();
@@ -162,15 +204,19 @@ export const interPixProvider: PaymentProvider = {
     }
 
     const cobUrl = `${baseUrl(env)}/pix/v2/cob/${encodeURIComponent(input.txid)}`;
-    const res = await bindings.INTER_MTLS.fetch(cobUrl, {
-      method: "PUT",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${token}`,
+    const res = await interFetch(
+      bindings,
+      cobUrl,
+      {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify(payload),
       },
-      body: JSON.stringify(payload),
-      signal: withTimeout(15_000),
-    });
+      "criacao da cobranca PIX",
+    );
     if (!res.ok) {
       const text = await res.text();
       throw new Error(`Falha ao criar cobrança PIX Inter (${res.status}): ${text.slice(0, 500)}`);
@@ -185,14 +231,27 @@ export const interPixProvider: PaymentProvider = {
     let qrcodeBase64 = "";
     if (cob.loc?.id) {
       const qrUrl = `${baseUrl(env)}/pix/v2/loc/${cob.loc.id}/qrcode`;
-      const qrRes = await bindings.INTER_MTLS.fetch(qrUrl, {
-        method: "GET",
-        headers: { Authorization: `Bearer ${token}` },
-        signal: withTimeout(15_000),
-      });
-      if (qrRes.ok) {
-        const qrJson = (await qrRes.json()) as { qrcode?: string; imagemQrcode?: string };
-        qrcodeBase64 = qrJson.imagemQrcode ?? qrJson.qrcode ?? "";
+      try {
+        const qrRes = await interFetch(
+          bindings,
+          qrUrl,
+          {
+            method: "GET",
+            headers: { Authorization: `Bearer ${token}` },
+          },
+          "QR Code PIX",
+          8_000,
+        );
+        if (qrRes.ok) {
+          const qrJson = (await qrRes.json()) as { qrcode?: string; imagemQrcode?: string };
+          qrcodeBase64 = qrJson.imagemQrcode ?? qrJson.qrcode ?? "";
+        } else {
+          console.warn("[inter-pix] QR Code request failed", { status: qrRes.status });
+        }
+      } catch (error) {
+        console.warn("[inter-pix] QR Code request skipped", {
+          message: error instanceof Error ? error.message : String(error),
+        });
       }
     }
 

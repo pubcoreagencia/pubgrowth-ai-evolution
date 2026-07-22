@@ -30,6 +30,11 @@ function AuthPage() {
 
   const goByRole = async () => {
     try {
+      const { data } = await supabase.auth.getUser();
+      if (data.user?.user_metadata?.password_setup_required === true) {
+        navigate({ to: "/auth/set-password" as never });
+        return;
+      }
       const { role } = await getMyRoleFn();
       if (role === "client") navigate({ to: "/client-portal" as never });
       else navigate({ to: "/" });
