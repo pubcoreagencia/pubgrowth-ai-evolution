@@ -317,3 +317,80 @@ export const simulateSandboxPixPaymentFn = createServerFn({ method: "POST" })
 
     return mapRow(updated);
   });
+
+export const confirmSandboxPixLocallyFn = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((i: { paymentOrderId: string }) =>
+    z.object({ paymentOrderId: z.string().uuid() }).parse(i),
+  )
+  .handler(async ({ context, data }): Promise<PaymentOrder> => {
+    const env = (process.env.INTER_ENV ?? "sandbox").replace(/^\uFEFF/, "").trim();
+    if (env !== "sandbox") {
+      throw new Error("Confirmacao local disponivel apenas no ambiente sandbox.");
+    }
+
+    const { data: isAdmin } = await context.supabase.rpc("has_role", {
+      _user_id: context.userId,
+      _role: "admin",
+    });
+    if (!isAdmin) throw new Error("Acesso negado.");
+
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { data: order, error } = await supabaseAdmin
+      .from("payment_orders")
+      .select("*, clients(name)")
+      .eq("id", data.paymentOrderId)
+      .single();
+    if (error) throw new Error(error.message);
+    if (!order.pix_txid) throw new Error("Esta cobranca nao tem TXID.");
+    if (order.status === "paid") return mapRow(order);
+
+    const paidAmount = toNum(order.amount);
+    const providerReference = `sandbox-local-${order.id}`;
+    const { data: rpcResult, error: rpcError } = await supabaseAdmin.rpc("confirm_pix_payment", {
+      p_txid: order.pix_txid,
+      p_paid_amount: paidAmount,
+      p_provider_reference: providerReference,
+    });
+    if (rpcError) throw new Error(rpcError.message);
+
+    const { data: refreshed, error: refreshError } = await supabaseAdmin
+      .from("payment_orders")
+      .select("*, clients(name)")
+      .eq("id", order.id)
+      .single();
+    if (refreshError) throw new Error(refreshError.message);
+
+    const confirmation = {
+      env: "sandbox",
+      method: "confirmacao local admin",
+      txid: order.pix_txid,
+      amount: paidAmount,
+      providerReference,
+      rpcResult,
+    };
+
+    const { data: updated, error: updateError } = await supabaseAdmin
+      .from("payment_orders")
+      .update({
+        provider_response: mergeProviderResponse(
+          refreshed.provider_response,
+          "localSandboxConfirmation",
+          confirmation as Json,
+        ),
+        reconciliation_error: null,
+      })
+      .eq("id", order.id)
+      .select("*, clients(name)")
+      .single();
+    if (updateError) throw new Error(updateError.message);
+
+    console.info("[payments] Sandbox Pix locally confirmed", {
+      paymentOrderId: order.id,
+      txid: order.pix_txid,
+      amount: paidAmount,
+      rpcResult,
+    });
+
+    return mapRow(updated);
+  });

@@ -3,6 +3,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Fragment } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import {
+  confirmSandboxPixLocallyFn,
   listAllPaymentOrdersFn,
   simulateSandboxPixPaymentFn,
   type PaymentOrder,
@@ -73,6 +74,17 @@ function AdminFinancialPage() {
     },
     onError: (error) => {
       toast.error(error instanceof Error ? error.message : "Falha ao simular pagamento sandbox.");
+    },
+  });
+  const confirmLocalMut = useMutation({
+    mutationFn: (paymentOrderId: string) =>
+      confirmSandboxPixLocallyFn({ data: { paymentOrderId } }),
+    onSuccess: async () => {
+      toast.success("Pagamento confirmado localmente no sandbox.");
+      await queryClient.invalidateQueries({ queryKey: ["admin-payment-orders"] });
+    },
+    onError: (error) => {
+      toast.error(error instanceof Error ? error.message : "Falha ao confirmar localmente.");
     },
   });
 
@@ -204,23 +216,44 @@ function AdminFinancialPage() {
                                       </p>
                                     </div>
                                   </div>
-                                  <Button
-                                    type="button"
-                                    size="sm"
-                                    variant="secondary"
-                                    className="gap-2"
-                                    disabled={
-                                      o.status === "paid" ||
-                                      !o.pixTxid ||
-                                      simulatePaymentMut.isPending
-                                    }
-                                    onClick={() => simulatePaymentMut.mutate(o.id)}
-                                  >
-                                    <PlayCircle className="h-4 w-4" />
-                                    {simulatePaymentMut.isPending
-                                      ? "Simulando..."
-                                      : "Simular pagamento sandbox"}
-                                  </Button>
+                                  <div className="flex flex-wrap gap-2">
+                                    <Button
+                                      type="button"
+                                      size="sm"
+                                      variant="secondary"
+                                      className="gap-2"
+                                      disabled={
+                                        o.status === "paid" ||
+                                        !o.pixTxid ||
+                                        simulatePaymentMut.isPending ||
+                                        confirmLocalMut.isPending
+                                      }
+                                      onClick={() => simulatePaymentMut.mutate(o.id)}
+                                    >
+                                      <PlayCircle className="h-4 w-4" />
+                                      {simulatePaymentMut.isPending
+                                        ? "Simulando..."
+                                        : "Simular pagamento no Inter"}
+                                    </Button>
+                                    <Button
+                                      type="button"
+                                      size="sm"
+                                      variant="outline"
+                                      className="gap-2"
+                                      disabled={
+                                        o.status === "paid" ||
+                                        !o.pixTxid ||
+                                        simulatePaymentMut.isPending ||
+                                        confirmLocalMut.isPending
+                                      }
+                                      onClick={() => confirmLocalMut.mutate(o.id)}
+                                    >
+                                      <CheckCircle2 className="h-4 w-4" />
+                                      {confirmLocalMut.isPending
+                                        ? "Confirmando..."
+                                        : "Confirmar localmente"}
+                                    </Button>
+                                  </div>
                                   <div>
                                     <p className="text-xs font-medium text-muted-foreground">
                                       PIX copia e cola
