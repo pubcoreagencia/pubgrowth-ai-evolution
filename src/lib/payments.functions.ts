@@ -33,6 +33,17 @@ function sanitizePaymentError(error: unknown): string {
   return message.replace(/\s+/g, " ").slice(0, 500);
 }
 
+function mergeProviderResponse(
+  current: Json | null,
+  key: string,
+  value: Json,
+): Json {
+  if (current && typeof current === "object" && !Array.isArray(current)) {
+    return { ...current, [key]: value };
+  }
+  return { [key]: value };
+}
+
 function randomAlphaNumeric(length: number): string {
   const alphabet = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
   const bytes = new Uint8Array(length);
@@ -230,4 +241,57 @@ export const listAllPaymentOrdersFn = createServerFn({ method: "GET" })
       .limit(500);
     if (error) throw new Error(error.message);
     return (rows ?? []).map(mapRow);
+  });
+
+export const simulateSandboxPixPaymentFn = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((i: { paymentOrderId: string }) =>
+    z.object({ paymentOrderId: z.string().uuid() }).parse(i),
+  )
+  .handler(async ({ context, data }): Promise<PaymentOrder> => {
+    const { data: isAdmin } = await context.supabase.rpc("has_role", {
+      _user_id: context.userId,
+      _role: "admin",
+    });
+    if (!isAdmin) throw new Error("Acesso negado.");
+
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { data: order, error } = await supabaseAdmin
+      .from("payment_orders")
+      .select("*, clients(name)")
+      .eq("id", data.paymentOrderId)
+      .single();
+    if (error) throw new Error(error.message);
+    if (!order.pix_txid) throw new Error("Esta cobranca nao tem TXID.");
+    if (order.status === "paid") return mapRow(order);
+
+    const { paySandboxPixCharge } = await import("./payment-provider/inter-pix.server");
+    const sandboxPayment = await paySandboxPixCharge({
+      txid: order.pix_txid,
+      amount: toNum(order.amount),
+    });
+
+    const { data: updated, error: updateError } = await supabaseAdmin
+      .from("payment_orders")
+      .update({
+        provider_response: mergeProviderResponse(
+          order.provider_response,
+          "sandboxPayment",
+          sandboxPayment as Json,
+        ),
+        reconciliation_error: null,
+      })
+      .eq("id", order.id)
+      .select("*, clients(name)")
+      .single();
+    if (updateError) throw new Error(updateError.message);
+
+    console.info("[payments] Sandbox Pix payment simulation requested", {
+      paymentOrderId: order.id,
+      txid: order.pix_txid,
+      amount: toNum(order.amount),
+      providerResponse: sandboxPayment,
+    });
+
+    return mapRow(updated);
   });

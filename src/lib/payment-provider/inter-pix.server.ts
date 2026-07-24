@@ -28,6 +28,8 @@ type JsonSafe =
   | JsonSafe[]
   | { [key: string]: JsonSafe };
 
+const tokenCacheVersion = "v2";
+
 // Fallback in-memory cache (per isolate). KV é a fonte primária.
 let memToken: { value: string; expiresAt: number; env: InterEnv } | null = null;
 
@@ -126,7 +128,7 @@ async function readCachedToken(env: InterEnv, kv?: KVNamespace): Promise<string 
     return memToken.value;
   }
   if (kv) {
-    const raw = await kv.get(`inter:token:${env}`);
+    const raw = await kv.get(`inter:token:${env}:${tokenCacheVersion}`);
     if (raw) {
       try {
         const parsed = JSON.parse(raw) as { value: string; expiresAt: number };
@@ -153,7 +155,7 @@ async function writeCachedToken(
   if (kv) {
     // TTL mínimo do KV é 60s.
     const kvTtl = Math.max(60, ttlSeconds - 30);
-    await kv.put(`inter:token:${env}`, JSON.stringify({ value, expiresAt }), {
+    await kv.put(`inter:token:${env}:${tokenCacheVersion}`, JSON.stringify({ value, expiresAt }), {
       expirationTtl: kvTtl,
     });
   }
@@ -170,7 +172,7 @@ async function getAccessToken(bindings: InterBindings): Promise<string> {
   const body = new URLSearchParams({
     client_id: clientId,
     client_secret: clientSecret,
-    scope: "cob.write cob.read pix.read webhook.write webhook.read",
+    scope: "cob.write cob.read pix.write pix.read webhook.write webhook.read",
     grant_type: "client_credentials",
   }).toString();
 
@@ -236,6 +238,59 @@ function sanitizeProviderValue(value: unknown, key = ""): JsonSafe {
   }
 
   return String(value);
+}
+
+export async function paySandboxPixCharge(input: {
+  txid: string;
+  amount: number;
+}): Promise<JsonSafe> {
+  const env = getEnv();
+  if (env !== "sandbox") {
+    throw new Error("A simulacao de pagamento PIX so pode ser usada no ambiente sandbox.");
+  }
+
+  const bindings = await getBindings();
+  const token = await getAccessToken(bindings);
+  const res = await interFetch(
+    bindings,
+    `${baseUrl(env)}/pix/v2/cob/pagar/${encodeURIComponent(input.txid)}`,
+    {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${token}`,
+      },
+      body: JSON.stringify({ valor: input.amount }),
+    },
+    "simulacao de pagamento PIX sandbox",
+  );
+
+  const text = await res.text();
+  let body: unknown = text;
+  try {
+    body = text ? JSON.parse(text) : null;
+  } catch {
+    body = text;
+  }
+
+  const providerResponse = sanitizeProviderValue({
+    env,
+    ok: res.ok,
+    status: res.status,
+    txid: input.txid,
+    amount: input.amount,
+    body,
+  });
+
+  console.info("[inter-pix] Sandbox Pix payment simulation", providerResponse);
+
+  if (!res.ok) {
+    throw new Error(
+      `Falha ao simular pagamento PIX sandbox (${res.status}): ${text.slice(0, 500)}`,
+    );
+  }
+
+  return providerResponse;
 }
 
 export const interPixProvider: PaymentProvider = {

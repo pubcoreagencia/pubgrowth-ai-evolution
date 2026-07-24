@@ -1,12 +1,18 @@
 import { createFileRoute, redirect } from "@tanstack/react-router";
-import { useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Fragment } from "react";
 import { supabase } from "@/integrations/supabase/client";
-import { listAllPaymentOrdersFn, type PaymentOrder } from "@/lib/payments.functions";
+import {
+  listAllPaymentOrdersFn,
+  simulateSandboxPixPaymentFn,
+  type PaymentOrder,
+} from "@/lib/payments.functions";
 import { StatCard } from "@/components/stat-card";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Wallet, Clock, CheckCircle2, TrendingUp } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Wallet, Clock, CheckCircle2, TrendingUp, PlayCircle } from "lucide-react";
+import { toast } from "sonner";
 
 export const Route = createFileRoute("/_authenticated/admin/financial")({
   beforeLoad: async () => {
@@ -54,9 +60,20 @@ function formatProviderResponse(value: PaymentOrder["providerResponse"]): string
 }
 
 function AdminFinancialPage() {
+  const queryClient = useQueryClient();
   const q = useQuery({
     queryKey: ["admin-payment-orders"],
     queryFn: () => listAllPaymentOrdersFn(),
+  });
+  const simulatePaymentMut = useMutation({
+    mutationFn: (paymentOrderId: string) => simulateSandboxPixPaymentFn({ data: { paymentOrderId } }),
+    onSuccess: async () => {
+      toast.success("Simulação enviada ao Banco Inter. Aguarde a confirmação do webhook.");
+      await queryClient.invalidateQueries({ queryKey: ["admin-payment-orders"] });
+    },
+    onError: (error) => {
+      toast.error(error instanceof Error ? error.message : "Falha ao simular pagamento sandbox.");
+    },
   });
 
   const orders = q.data ?? [];
@@ -187,6 +204,23 @@ function AdminFinancialPage() {
                                       </p>
                                     </div>
                                   </div>
+                                  <Button
+                                    type="button"
+                                    size="sm"
+                                    variant="secondary"
+                                    className="gap-2"
+                                    disabled={
+                                      o.status === "paid" ||
+                                      !o.pixTxid ||
+                                      simulatePaymentMut.isPending
+                                    }
+                                    onClick={() => simulatePaymentMut.mutate(o.id)}
+                                  >
+                                    <PlayCircle className="h-4 w-4" />
+                                    {simulatePaymentMut.isPending
+                                      ? "Simulando..."
+                                      : "Simular pagamento sandbox"}
+                                  </Button>
                                   <div>
                                     <p className="text-xs font-medium text-muted-foreground">
                                       PIX copia e cola
