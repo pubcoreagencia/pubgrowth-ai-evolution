@@ -81,6 +81,32 @@ function getRequiredEnv(name: string): string {
   return value;
 }
 
+function getOptionalEnv(...names: string[]): string | null {
+  for (const name of names) {
+    const value = normalizeEnvValue(process.env[name]);
+    if (value) return value;
+  }
+  return null;
+}
+
+function interApiHeaders(
+  token: string,
+  options: { contentType?: string } = {},
+): Record<string, string> {
+  const headers: Record<string, string> = {
+    Authorization: `Bearer ${token}`,
+  };
+  if (options.contentType) {
+    headers["Content-Type"] = options.contentType;
+  }
+
+  const accountNumber = getOptionalEnv("INTER_ACCOUNT_NUMBER", "INTER_CONTA_CORRENTE");
+  if (accountNumber) {
+    headers["x-conta-corrente"] = accountNumber.replace(/\D/g, "");
+  }
+  return headers;
+}
+
 function isAbortError(error: unknown): boolean {
   return (
     (error instanceof DOMException && error.name === "AbortError") ||
@@ -216,6 +242,9 @@ function sanitizeProviderValue(value: unknown, key = ""): JsonSafe {
       "chave",
       "cpf",
       "cnpj",
+      "x-conta-corrente",
+      "inter_account_number",
+      "inter_conta_corrente",
     ].includes(normalizedKey)
   ) {
     return "[redacted]";
@@ -255,6 +284,7 @@ export async function paySandboxPixCharge(input: {
   }
 
   const amount = toPaymentAmount(input.amount);
+  const amountNumber = Number(amount);
   const bindings = await getBindings();
   const token = await getAccessToken(bindings);
 
@@ -265,11 +295,8 @@ export async function paySandboxPixCharge(input: {
     `${baseUrl(env)}/pix/v2/cob/pagar/${encodeURIComponent(input.txid)}`,
     {
       method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${token}`,
-      },
-      body: JSON.stringify({ valor: amount }),
+      headers: interApiHeaders(token, { contentType: "application/json" }),
+      body: JSON.stringify({ valor: amountNumber }),
     },
     "pagar por txid",
   );
@@ -288,11 +315,8 @@ export async function paySandboxPixCharge(input: {
       `${baseUrl(env)}/pix/v2/sandbox/cob/pagamento`,
       {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify({ qrCode: input.copyPaste, valor: input.amount }),
+        headers: interApiHeaders(token, { contentType: "application/json" }),
+        body: JSON.stringify({ qrCode: input.copyPaste, valor: amountNumber }),
       },
       "pagar por pix copia e cola",
     );
@@ -360,7 +384,7 @@ async function requestSandboxPayment(
       request: {
         url,
         body: init.body,
-        authorization: token,
+        headers: init.headers,
       },
       body,
     }),
@@ -396,10 +420,7 @@ export const interPixProvider: PaymentProvider = {
       cobUrl,
       {
         method: "PUT",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
+        headers: interApiHeaders(token, { contentType: "application/json" }),
         body: JSON.stringify(payload),
       },
       "criacao da cobranca PIX",
@@ -426,7 +447,7 @@ export const interPixProvider: PaymentProvider = {
           qrUrl,
           {
             method: "GET",
-            headers: { Authorization: `Bearer ${token}` },
+            headers: interApiHeaders(token),
           },
           "QR Code PIX",
           8_000,

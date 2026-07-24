@@ -12,6 +12,7 @@
 #   4. wrangler secret put INTER_CLIENT_ID
 #      wrangler secret put INTER_CLIENT_SECRET
 #      wrangler secret put INTER_PIX_KEY
+#      wrangler secret put INTER_ACCOUNT_NUMBER  # opcional; necessario se a integracao Inter tiver mais de uma conta
 #      wrangler secret put INTER_WEBHOOK_SECRET
 #      wrangler secret put SUPABASE_URL
 #      wrangler secret put SUPABASE_PUBLISHABLE_KEY
