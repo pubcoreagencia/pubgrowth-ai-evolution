@@ -200,6 +200,10 @@ function toCurrency(amount: number): string {
   return amount.toFixed(2);
 }
 
+function toPaymentAmount(amount: number): string {
+  return amount.toFixed(2);
+}
+
 function sanitizeProviderValue(value: unknown, key = ""): JsonSafe {
   const normalizedKey = key.toLowerCase();
   if (
@@ -249,6 +253,7 @@ export async function paySandboxPixCharge(input: {
     throw new Error("A simulacao de pagamento PIX so pode ser usada no ambiente sandbox.");
   }
 
+  const amount = toPaymentAmount(input.amount);
   const bindings = await getBindings();
   const token = await getAccessToken(bindings);
   const res = await interFetch(
@@ -260,7 +265,7 @@ export async function paySandboxPixCharge(input: {
         "Content-Type": "application/json",
         Authorization: `Bearer ${token}`,
       },
-      body: JSON.stringify({ valor: input.amount }),
+      body: JSON.stringify({ valor: amount }),
     },
     "simulacao de pagamento PIX sandbox",
   );
@@ -278,7 +283,7 @@ export async function paySandboxPixCharge(input: {
     ok: res.ok,
     status: res.status,
     txid: input.txid,
-    amount: input.amount,
+    amount,
     body,
   });
 
