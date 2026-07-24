@@ -266,10 +266,32 @@ export const simulateSandboxPixPaymentFn = createServerFn({ method: "POST" })
     if (order.status === "paid") return mapRow(order);
 
     const { paySandboxPixCharge } = await import("./payment-provider/inter-pix.server");
-    const sandboxPayment = await paySandboxPixCharge({
-      txid: order.pix_txid,
-      amount: toNum(order.amount),
-    });
+    let sandboxPayment: unknown;
+    try {
+      sandboxPayment = await paySandboxPixCharge({
+        txid: order.pix_txid,
+        amount: toNum(order.amount),
+        copyPaste: order.pix_copy_paste,
+      });
+    } catch (error) {
+      const safeMessage = sanitizePaymentError(error);
+      const providerResponse =
+        error instanceof Error && "providerResponse" in error
+          ? ((error as Error & { providerResponse?: Json }).providerResponse ?? null)
+          : null;
+      await supabaseAdmin
+        .from("payment_orders")
+        .update({
+          provider_response: mergeProviderResponse(
+            order.provider_response,
+            "sandboxPaymentFailure",
+            (providerResponse ?? safeMessage) as Json,
+          ),
+          reconciliation_error: safeMessage,
+        })
+        .eq("id", order.id);
+      throw new Error(safeMessage);
+    }
 
     const { data: updated, error: updateError } = await supabaseAdmin
       .from("payment_orders")

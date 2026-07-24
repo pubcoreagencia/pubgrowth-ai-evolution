@@ -247,6 +247,7 @@ function sanitizeProviderValue(value: unknown, key = ""): JsonSafe {
 export async function paySandboxPixCharge(input: {
   txid: string;
   amount: number;
+  copyPaste?: string | null;
 }): Promise<JsonSafe> {
   const env = getEnv();
   if (env !== "sandbox") {
@@ -256,8 +257,11 @@ export async function paySandboxPixCharge(input: {
   const amount = toPaymentAmount(input.amount);
   const bindings = await getBindings();
   const token = await getAccessToken(bindings);
-  const res = await interFetch(
+
+  const txidAttempt = await requestSandboxPayment(
     bindings,
+    env,
+    token,
     `${baseUrl(env)}/pix/v2/cob/pagar/${encodeURIComponent(input.txid)}`,
     {
       method: "POST",
@@ -267,9 +271,75 @@ export async function paySandboxPixCharge(input: {
       },
       body: JSON.stringify({ valor: amount }),
     },
-    "simulacao de pagamento PIX sandbox",
+    "pagar por txid",
   );
 
+  if (txidAttempt.ok) {
+    console.info("[inter-pix] Sandbox Pix payment simulation", txidAttempt.providerResponse);
+    return txidAttempt.providerResponse;
+  }
+
+  let qrAttempt: Awaited<ReturnType<typeof requestSandboxPayment>> | null = null;
+  if (input.copyPaste) {
+    qrAttempt = await requestSandboxPayment(
+      bindings,
+      env,
+      token,
+      `${baseUrl(env)}/pix/v2/sandbox/cob/pagamento`,
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({ qrCode: input.copyPaste, valor: input.amount }),
+      },
+      "pagar por pix copia e cola",
+    );
+    if (qrAttempt.ok) {
+      const providerResponse = sanitizeProviderValue({
+        env,
+        txid: input.txid,
+        amount,
+        attempts: {
+          txid: txidAttempt.providerResponse,
+          qrCode: qrAttempt.providerResponse,
+        },
+      });
+      console.info("[inter-pix] Sandbox Pix payment simulation", providerResponse);
+      return providerResponse;
+    }
+  }
+
+  const providerResponse = sanitizeProviderValue({
+    env,
+    txid: input.txid,
+    amount,
+    attempts: {
+      txid: txidAttempt.providerResponse,
+      qrCode: qrAttempt?.providerResponse ?? null,
+    },
+  });
+
+  console.warn("[inter-pix] Sandbox Pix payment simulation failed", providerResponse);
+  const error = new Error(
+    `Falha ao simular pagamento PIX sandbox. ` +
+      `TXID: ${txidAttempt.status} ${txidAttempt.text.slice(0, 300)} ` +
+      (qrAttempt ? `QRCode: ${qrAttempt.status} ${qrAttempt.text.slice(0, 300)}` : ""),
+  );
+  (error as Error & { providerResponse?: JsonSafe }).providerResponse = providerResponse;
+  throw error;
+}
+
+async function requestSandboxPayment(
+  bindings: InterBindings,
+  env: InterEnv,
+  token: string,
+  url: string,
+  init: RequestInit,
+  method: string,
+): Promise<{ ok: boolean; status: number; text: string; providerResponse: JsonSafe }> {
+  const res = await interFetch(bindings, url, init, `simulacao sandbox (${method})`);
   const text = await res.text();
   let body: unknown = text;
   try {
@@ -278,24 +348,23 @@ export async function paySandboxPixCharge(input: {
     body = text;
   }
 
-  const providerResponse = sanitizeProviderValue({
-    env,
+  return {
     ok: res.ok,
     status: res.status,
-    txid: input.txid,
-    amount,
-    body,
-  });
-
-  console.info("[inter-pix] Sandbox Pix payment simulation", providerResponse);
-
-  if (!res.ok) {
-    throw new Error(
-      `Falha ao simular pagamento PIX sandbox (${res.status}): ${text.slice(0, 500)}`,
-    );
-  }
-
-  return providerResponse;
+    text,
+    providerResponse: sanitizeProviderValue({
+      env,
+      method,
+      ok: res.ok,
+      status: res.status,
+      request: {
+        url,
+        body: init.body,
+        authorization: token,
+      },
+      body,
+    }),
+  };
 }
 
 export const interPixProvider: PaymentProvider = {
