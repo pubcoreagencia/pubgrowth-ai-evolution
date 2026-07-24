@@ -15,6 +15,7 @@ import { Route as ClientPortalRouteRouteImport } from './routes/client-portal/ro
 import { Route as AuthenticatedIndexRouteImport } from './routes/_authenticated/index'
 import { Route as AuthenticatedClientsRouteImport } from './routes/_authenticated/clients'
 import { Route as AuthenticatedSettingsRouteImport } from './routes/_authenticated/settings'
+import { Route as AuthIndexRouteImport } from './routes/auth.index'
 import { Route as AuthSetPasswordRouteImport } from './routes/auth.set-password'
 import { Route as ClientPortalIndexRouteImport } from './routes/client-portal/index'
 import { Route as ClientPortalWalletRouteImport } from './routes/client-portal/wallet'
@@ -55,6 +56,11 @@ const AuthenticatedSettingsRoute = AuthenticatedSettingsRouteImport.update({
   id: '/settings',
   path: '/settings',
   getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
+const AuthIndexRoute = AuthIndexRouteImport.update({
+  id: '/',
+  path: '/',
+  getParentRoute: () => AuthRoute,
 } as any)
 const AuthSetPasswordRoute = AuthSetPasswordRouteImport.update({
   id: '/set-password',
@@ -127,6 +133,7 @@ export interface FileRoutesByFullPath {
   '/settings': typeof AuthenticatedSettingsRoute
   '/auth/set-password': typeof AuthSetPasswordRoute
   '/client-portal/wallet': typeof ClientPortalWalletRoute
+  '/auth/': typeof AuthIndexRoute
   '/client-portal/': typeof ClientPortalIndexRoute
   '/admin/financial': typeof AuthenticatedAdminFinancialRoute
   '/campaigns/$id': typeof AuthenticatedCampaignsIdRoute
@@ -138,12 +145,12 @@ export interface FileRoutesByFullPath {
   '/clients/$id/social/$profileId': typeof AuthenticatedClientsIdSocialProfileIdRoute
 }
 export interface FileRoutesByTo {
-  '/auth': typeof AuthRouteWithChildren
   '/clients': typeof AuthenticatedClientsRouteWithChildren
   '/settings': typeof AuthenticatedSettingsRoute
   '/auth/set-password': typeof AuthSetPasswordRoute
   '/client-portal/wallet': typeof ClientPortalWalletRoute
   '/': typeof AuthenticatedIndexRoute
+  '/auth': typeof AuthIndexRoute
   '/client-portal': typeof ClientPortalIndexRoute
   '/admin/financial': typeof AuthenticatedAdminFinancialRoute
   '/campaigns/$id': typeof AuthenticatedCampaignsIdRoute
@@ -164,6 +171,7 @@ export interface FileRoutesById {
   '/auth/set-password': typeof AuthSetPasswordRoute
   '/client-portal/wallet': typeof ClientPortalWalletRoute
   '/_authenticated/': typeof AuthenticatedIndexRoute
+  '/auth/': typeof AuthIndexRoute
   '/client-portal/': typeof ClientPortalIndexRoute
   '/_authenticated/admin/financial': typeof AuthenticatedAdminFinancialRoute
   '/_authenticated/campaigns/$id': typeof AuthenticatedCampaignsIdRoute
@@ -184,6 +192,7 @@ export interface FileRouteTypes {
     | '/settings'
     | '/auth/set-password'
     | '/client-portal/wallet'
+    | '/auth/'
     | '/client-portal/'
     | '/admin/financial'
     | '/campaigns/$id'
@@ -195,12 +204,12 @@ export interface FileRouteTypes {
     | '/clients/$id/social/$profileId'
   fileRoutesByTo: FileRoutesByTo
   to:
-    | '/auth'
     | '/clients'
     | '/settings'
     | '/auth/set-password'
     | '/client-portal/wallet'
     | '/'
+    | '/auth'
     | '/client-portal'
     | '/admin/financial'
     | '/campaigns/$id'
@@ -220,6 +229,7 @@ export interface FileRouteTypes {
     | '/auth/set-password'
     | '/client-portal/wallet'
     | '/_authenticated/'
+    | '/auth/'
     | '/client-portal/'
     | '/_authenticated/admin/financial'
     | '/_authenticated/campaigns/$id'
@@ -281,6 +291,13 @@ declare module '@tanstack/react-router' {
       fullPath: '/settings'
       preLoaderRoute: typeof AuthenticatedSettingsRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/auth/': {
+      id: '/auth/'
+      path: '/'
+      fullPath: '/auth/'
+      preLoaderRoute: typeof AuthIndexRouteImport
+      parentRoute: typeof AuthRoute
     }
     '/auth/set-password': {
       id: '/auth/set-password'
@@ -428,10 +445,12 @@ const ClientPortalRouteRouteWithChildren =
 
 interface AuthRouteChildren {
   AuthSetPasswordRoute: typeof AuthSetPasswordRoute
+  AuthIndexRoute: typeof AuthIndexRoute
 }
 
 const AuthRouteChildren: AuthRouteChildren = {
   AuthSetPasswordRoute: AuthSetPasswordRoute,
+  AuthIndexRoute: AuthIndexRoute,
 }
 
 const AuthRouteWithChildren = AuthRoute._addFileChildren(AuthRouteChildren)
