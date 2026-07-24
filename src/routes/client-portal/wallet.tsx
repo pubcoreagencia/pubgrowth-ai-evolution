@@ -68,6 +68,11 @@ function getOrderStatusVariant(
   return statusVariant[order.status];
 }
 
+function isSandboxPixPayload(order: PaymentOrder | null): boolean {
+  const payload = order?.pixCopyPaste?.toLowerCase() ?? "";
+  return payload.includes("sandbox") || payload.includes("uatinter");
+}
+
 function ClientWalletPage() {
   const qc = useQueryClient();
   const portalQ = useQuery({
@@ -92,7 +97,11 @@ function ClientWalletPage() {
       setOpen(false);
       setAmount("");
       qc.invalidateQueries({ queryKey: ["my-payment-orders"] });
-      toast.success("Cobrança PIX gerada. Escaneie o QR ou copie o código.");
+      toast.success(
+        isSandboxPixPayload(order)
+          ? "Cobrança PIX sandbox gerada. Use o ambiente de homologação do Inter para testar."
+          : "Cobrança PIX gerada. Escaneie o QR ou copie o código.",
+      );
     },
     onError: (e: Error) => {
       qc.invalidateQueries({ queryKey: ["my-payment-orders"] });
@@ -109,6 +118,7 @@ function ClientWalletPage() {
   });
 
   const current = activePoll.data ?? activeOrder;
+  const currentIsSandbox = isSandboxPixPayload(current);
   if (current && activeOrder && current.status !== activeOrder.status) {
     if (current.status === "paid") {
       toast.success(`Pagamento confirmado: ${brl(current.amount)} adicionados à carteira.`);
@@ -179,8 +189,10 @@ function ClientWalletPage() {
                   className="h-56 w-56 rounded-md border bg-white p-2"
                 />
               ) : (
-                <div className="grid h-56 w-56 place-items-center rounded-md border text-sm text-muted-foreground">
-                  QR indisponível
+                <div className="grid h-56 w-56 place-items-center rounded-md border p-4 text-center text-sm text-muted-foreground">
+                  {currentIsSandbox
+                    ? "QR indisponível no retorno sandbox. Use o código no ambiente de homologação do Inter."
+                    : "QR indisponível"}
                 </div>
               )}
               <Badge variant={getOrderStatusVariant(current)}>{getOrderStatusLabel(current)}</Badge>
@@ -208,8 +220,9 @@ function ClientWalletPage() {
                 </Button>
               </div>
               <p className="text-xs text-muted-foreground">
-                A carteira é atualizada automaticamente assim que o pagamento é confirmado pelo
-                banco.
+                {currentIsSandbox
+                  ? "Este PIX é do sandbox do Banco Inter e não deve ser pago em apps bancários reais. Use o simulador ou ambiente de homologação do Inter para confirmar o pagamento."
+                  : "A carteira é atualizada automaticamente assim que o pagamento é confirmado pelo banco."}
               </p>
             </div>
           </CardContent>
