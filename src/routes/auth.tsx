@@ -1,4 +1,4 @@
-import { createFileRoute, useNavigate, Link } from "@tanstack/react-router";
+import { createFileRoute, useNavigate, Link, Outlet, useLocation } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { getMyRoleFn } from "@/lib/client-portal.functions";
@@ -24,6 +24,13 @@ export const Route = createFileRoute("/auth")({
 });
 
 function AuthPage() {
+  const location = useLocation();
+  const isChildRoute = location.pathname !== "/auth";
+
+  return isChildRoute ? <Outlet /> : <AuthLoginPage />;
+}
+
+function AuthLoginPage() {
   const navigate = useNavigate();
   const [checking, setChecking] = useState(true);
   const [loading, setLoading] = useState(false);

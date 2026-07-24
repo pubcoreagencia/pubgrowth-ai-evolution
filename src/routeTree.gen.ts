@@ -9,24 +9,28 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
+import { Route as AuthenticatedRouteRouteImport } from './routes/_authenticated/route'
 import { Route as AuthRouteImport } from './routes/auth'
 import { Route as ClientPortalRouteRouteImport } from './routes/client-portal/route'
-import { Route as AuthenticatedRouteRouteImport } from './routes/_authenticated/route'
-import { Route as ClientPortalIndexRouteImport } from './routes/client-portal/index'
 import { Route as AuthenticatedIndexRouteImport } from './routes/_authenticated/index'
-import { Route as ClientPortalWalletRouteImport } from './routes/client-portal/wallet'
-import { Route as AuthSetPasswordRouteImport } from './routes/auth.set-password'
-import { Route as AuthenticatedSettingsRouteImport } from './routes/_authenticated/settings'
 import { Route as AuthenticatedClientsRouteImport } from './routes/_authenticated/clients'
-import { Route as AuthenticatedCampaignsIndexRouteImport } from './routes/_authenticated/campaigns.index'
-import { Route as AuthenticatedClientsIdRouteImport } from './routes/_authenticated/clients.$id'
-import { Route as AuthenticatedCampaignsNewRouteImport } from './routes/_authenticated/campaigns.new'
-import { Route as AuthenticatedCampaignsIdRouteImport } from './routes/_authenticated/campaigns.$id'
+import { Route as AuthenticatedSettingsRouteImport } from './routes/_authenticated/settings'
+import { Route as AuthSetPasswordRouteImport } from './routes/auth.set-password'
+import { Route as ClientPortalIndexRouteImport } from './routes/client-portal/index'
+import { Route as ClientPortalWalletRouteImport } from './routes/client-portal/wallet'
 import { Route as AuthenticatedAdminFinancialRouteImport } from './routes/_authenticated/admin.financial'
-import { Route as ApiPublicWebhooksInterPixRouteImport } from './routes/api/public/webhooks/inter-pix'
+import { Route as AuthenticatedCampaignsIndexRouteImport } from './routes/_authenticated/campaigns.index'
+import { Route as AuthenticatedCampaignsIdRouteImport } from './routes/_authenticated/campaigns.$id'
+import { Route as AuthenticatedCampaignsNewRouteImport } from './routes/_authenticated/campaigns.new'
+import { Route as AuthenticatedClientsIdRouteImport } from './routes/_authenticated/clients.$id'
 import { Route as AuthenticatedClientsIdWalletRouteImport } from './routes/_authenticated/clients.$id.wallet'
+import { Route as ApiPublicWebhooksInterPixRouteImport } from './routes/api/public/webhooks/inter-pix'
 import { Route as AuthenticatedClientsIdSocialProfileIdRouteImport } from './routes/_authenticated/clients.$id.social.$profileId'
 
+const AuthenticatedRouteRoute = AuthenticatedRouteRouteImport.update({
+  id: '/_authenticated',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const AuthRoute = AuthRouteImport.update({
   id: '/auth',
   path: '/auth',
@@ -37,33 +41,9 @@ const ClientPortalRouteRoute = ClientPortalRouteRouteImport.update({
   path: '/client-portal',
   getParentRoute: () => rootRouteImport,
 } as any)
-const AuthenticatedRouteRoute = AuthenticatedRouteRouteImport.update({
-  id: '/_authenticated',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const ClientPortalIndexRoute = ClientPortalIndexRouteImport.update({
-  id: '/',
-  path: '/',
-  getParentRoute: () => ClientPortalRouteRoute,
-} as any)
 const AuthenticatedIndexRoute = AuthenticatedIndexRouteImport.update({
   id: '/',
   path: '/',
-  getParentRoute: () => AuthenticatedRouteRoute,
-} as any)
-const ClientPortalWalletRoute = ClientPortalWalletRouteImport.update({
-  id: '/wallet',
-  path: '/wallet',
-  getParentRoute: () => ClientPortalRouteRoute,
-} as any)
-const AuthSetPasswordRoute = AuthSetPasswordRouteImport.update({
-  id: '/set-password',
-  path: '/set-password',
-  getParentRoute: () => AuthRoute,
-} as any)
-const AuthenticatedSettingsRoute = AuthenticatedSettingsRouteImport.update({
-  id: '/settings',
-  path: '/settings',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
 const AuthenticatedClientsRoute = AuthenticatedClientsRouteImport.update({
@@ -71,21 +51,36 @@ const AuthenticatedClientsRoute = AuthenticatedClientsRouteImport.update({
   path: '/clients',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
+const AuthenticatedSettingsRoute = AuthenticatedSettingsRouteImport.update({
+  id: '/settings',
+  path: '/settings',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
+const AuthSetPasswordRoute = AuthSetPasswordRouteImport.update({
+  id: '/set-password',
+  path: '/set-password',
+  getParentRoute: () => AuthRoute,
+} as any)
+const ClientPortalIndexRoute = ClientPortalIndexRouteImport.update({
+  id: '/',
+  path: '/',
+  getParentRoute: () => ClientPortalRouteRoute,
+} as any)
+const ClientPortalWalletRoute = ClientPortalWalletRouteImport.update({
+  id: '/wallet',
+  path: '/wallet',
+  getParentRoute: () => ClientPortalRouteRoute,
+} as any)
+const AuthenticatedAdminFinancialRoute =
+  AuthenticatedAdminFinancialRouteImport.update({
+    id: '/admin/financial',
+    path: '/admin/financial',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
 const AuthenticatedCampaignsIndexRoute =
   AuthenticatedCampaignsIndexRouteImport.update({
     id: '/campaigns/',
     path: '/campaigns/',
-    getParentRoute: () => AuthenticatedRouteRoute,
-  } as any)
-const AuthenticatedClientsIdRoute = AuthenticatedClientsIdRouteImport.update({
-  id: '/$id',
-  path: '/$id',
-  getParentRoute: () => AuthenticatedClientsRoute,
-} as any)
-const AuthenticatedCampaignsNewRoute =
-  AuthenticatedCampaignsNewRouteImport.update({
-    id: '/campaigns/new',
-    path: '/campaigns/new',
     getParentRoute: () => AuthenticatedRouteRoute,
   } as any)
 const AuthenticatedCampaignsIdRoute =
@@ -94,23 +89,28 @@ const AuthenticatedCampaignsIdRoute =
     path: '/campaigns/$id',
     getParentRoute: () => AuthenticatedRouteRoute,
   } as any)
-const AuthenticatedAdminFinancialRoute =
-  AuthenticatedAdminFinancialRouteImport.update({
-    id: '/admin/financial',
-    path: '/admin/financial',
+const AuthenticatedCampaignsNewRoute =
+  AuthenticatedCampaignsNewRouteImport.update({
+    id: '/campaigns/new',
+    path: '/campaigns/new',
     getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
+const AuthenticatedClientsIdRoute = AuthenticatedClientsIdRouteImport.update({
+  id: '/$id',
+  path: '/$id',
+  getParentRoute: () => AuthenticatedClientsRoute,
+} as any)
+const AuthenticatedClientsIdWalletRoute =
+  AuthenticatedClientsIdWalletRouteImport.update({
+    id: '/wallet',
+    path: '/wallet',
+    getParentRoute: () => AuthenticatedClientsIdRoute,
   } as any)
 const ApiPublicWebhooksInterPixRoute =
   ApiPublicWebhooksInterPixRouteImport.update({
     id: '/api/public/webhooks/inter-pix',
     path: '/api/public/webhooks/inter-pix',
     getParentRoute: () => rootRouteImport,
-  } as any)
-const AuthenticatedClientsIdWalletRoute =
-  AuthenticatedClientsIdWalletRouteImport.update({
-    id: '/wallet',
-    path: '/wallet',
-    getParentRoute: () => AuthenticatedClientsIdRoute,
   } as any)
 const AuthenticatedClientsIdSocialProfileIdRoute =
   AuthenticatedClientsIdSocialProfileIdRouteImport.update({
@@ -240,6 +240,13 @@ export interface RootRouteChildren {
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
+    '/_authenticated': {
+      id: '/_authenticated'
+      path: ''
+      fullPath: '/'
+      preLoaderRoute: typeof AuthenticatedRouteRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/auth': {
       id: '/auth'
       path: '/auth'
@@ -254,46 +261,11 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ClientPortalRouteRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/_authenticated': {
-      id: '/_authenticated'
-      path: ''
-      fullPath: '/'
-      preLoaderRoute: typeof AuthenticatedRouteRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/client-portal/': {
-      id: '/client-portal/'
-      path: '/'
-      fullPath: '/client-portal/'
-      preLoaderRoute: typeof ClientPortalIndexRouteImport
-      parentRoute: typeof ClientPortalRouteRoute
-    }
     '/_authenticated/': {
       id: '/_authenticated/'
       path: '/'
       fullPath: '/'
       preLoaderRoute: typeof AuthenticatedIndexRouteImport
-      parentRoute: typeof AuthenticatedRouteRoute
-    }
-    '/client-portal/wallet': {
-      id: '/client-portal/wallet'
-      path: '/wallet'
-      fullPath: '/client-portal/wallet'
-      preLoaderRoute: typeof ClientPortalWalletRouteImport
-      parentRoute: typeof ClientPortalRouteRoute
-    }
-    '/auth/set-password': {
-      id: '/auth/set-password'
-      path: '/set-password'
-      fullPath: '/auth/set-password'
-      preLoaderRoute: typeof AuthSetPasswordRouteImport
-      parentRoute: typeof AuthRoute
-    }
-    '/_authenticated/settings': {
-      id: '/_authenticated/settings'
-      path: '/settings'
-      fullPath: '/settings'
-      preLoaderRoute: typeof AuthenticatedSettingsRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
     '/_authenticated/clients': {
@@ -303,25 +275,46 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedClientsRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/_authenticated/settings': {
+      id: '/_authenticated/settings'
+      path: '/settings'
+      fullPath: '/settings'
+      preLoaderRoute: typeof AuthenticatedSettingsRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/auth/set-password': {
+      id: '/auth/set-password'
+      path: '/set-password'
+      fullPath: '/auth/set-password'
+      preLoaderRoute: typeof AuthSetPasswordRouteImport
+      parentRoute: typeof AuthRoute
+    }
+    '/client-portal/': {
+      id: '/client-portal/'
+      path: '/'
+      fullPath: '/client-portal/'
+      preLoaderRoute: typeof ClientPortalIndexRouteImport
+      parentRoute: typeof ClientPortalRouteRoute
+    }
+    '/client-portal/wallet': {
+      id: '/client-portal/wallet'
+      path: '/wallet'
+      fullPath: '/client-portal/wallet'
+      preLoaderRoute: typeof ClientPortalWalletRouteImport
+      parentRoute: typeof ClientPortalRouteRoute
+    }
+    '/_authenticated/admin/financial': {
+      id: '/_authenticated/admin/financial'
+      path: '/admin/financial'
+      fullPath: '/admin/financial'
+      preLoaderRoute: typeof AuthenticatedAdminFinancialRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
     '/_authenticated/campaigns/': {
       id: '/_authenticated/campaigns/'
       path: '/campaigns'
       fullPath: '/campaigns/'
       preLoaderRoute: typeof AuthenticatedCampaignsIndexRouteImport
-      parentRoute: typeof AuthenticatedRouteRoute
-    }
-    '/_authenticated/clients/$id': {
-      id: '/_authenticated/clients/$id'
-      path: '/$id'
-      fullPath: '/clients/$id'
-      preLoaderRoute: typeof AuthenticatedClientsIdRouteImport
-      parentRoute: typeof AuthenticatedClientsRoute
-    }
-    '/_authenticated/campaigns/new': {
-      id: '/_authenticated/campaigns/new'
-      path: '/campaigns/new'
-      fullPath: '/campaigns/new'
-      preLoaderRoute: typeof AuthenticatedCampaignsNewRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
     '/_authenticated/campaigns/$id': {
@@ -331,19 +324,19 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedCampaignsIdRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
-    '/_authenticated/admin/financial': {
-      id: '/_authenticated/admin/financial'
-      path: '/admin/financial'
-      fullPath: '/admin/financial'
-      preLoaderRoute: typeof AuthenticatedAdminFinancialRouteImport
+    '/_authenticated/campaigns/new': {
+      id: '/_authenticated/campaigns/new'
+      path: '/campaigns/new'
+      fullPath: '/campaigns/new'
+      preLoaderRoute: typeof AuthenticatedCampaignsNewRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
-    '/api/public/webhooks/inter-pix': {
-      id: '/api/public/webhooks/inter-pix'
-      path: '/api/public/webhooks/inter-pix'
-      fullPath: '/api/public/webhooks/inter-pix'
-      preLoaderRoute: typeof ApiPublicWebhooksInterPixRouteImport
-      parentRoute: typeof rootRouteImport
+    '/_authenticated/clients/$id': {
+      id: '/_authenticated/clients/$id'
+      path: '/$id'
+      fullPath: '/clients/$id'
+      preLoaderRoute: typeof AuthenticatedClientsIdRouteImport
+      parentRoute: typeof AuthenticatedClientsRoute
     }
     '/_authenticated/clients/$id/wallet': {
       id: '/_authenticated/clients/$id/wallet'
@@ -351,6 +344,13 @@ declare module '@tanstack/react-router' {
       fullPath: '/clients/$id/wallet'
       preLoaderRoute: typeof AuthenticatedClientsIdWalletRouteImport
       parentRoute: typeof AuthenticatedClientsIdRoute
+    }
+    '/api/public/webhooks/inter-pix': {
+      id: '/api/public/webhooks/inter-pix'
+      path: '/api/public/webhooks/inter-pix'
+      fullPath: '/api/public/webhooks/inter-pix'
+      preLoaderRoute: typeof ApiPublicWebhooksInterPixRouteImport
+      parentRoute: typeof rootRouteImport
     }
     '/_authenticated/clients/$id/social/$profileId': {
       id: '/_authenticated/clients/$id/social/$profileId'

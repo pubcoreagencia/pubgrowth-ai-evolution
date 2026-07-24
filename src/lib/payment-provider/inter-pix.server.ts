@@ -78,6 +78,18 @@ function isAbortError(error: unknown): boolean {
   );
 }
 
+function interTimeoutMessage(env: InterEnv, label: string): string {
+  if (env === "sandbox") {
+    return (
+      `Banco Inter sandbox nao respondeu a tempo (${label}). ` +
+      "O ambiente de testes pode estar fora da janela operacional. " +
+      "Tente novamente dentro do horario de homologacao informado pelo Inter."
+    );
+  }
+
+  return `Banco Inter nao respondeu a tempo (${label}). Tente novamente em alguns instantes.`;
+}
+
 async function interFetch(
   bindings: InterBindings,
   url: string,
@@ -91,9 +103,7 @@ async function interFetch(
     return await bindings.INTER_MTLS.fetch(url, { ...init, signal: ctrl.signal });
   } catch (error) {
     if (isAbortError(error)) {
-      throw new Error(
-        `Banco Inter nao respondeu a tempo (${label}). Tente novamente em alguns instantes.`,
-      );
+      throw new Error(interTimeoutMessage(getEnv(), label));
     }
     const message = error instanceof Error ? error.message : String(error);
     throw new Error(`Falha de comunicacao com Banco Inter (${label}): ${message}`);

@@ -22,6 +22,29 @@ export const Route = createFileRoute("/auth/set-password")({
   }),
 });
 
+const sessionCheckTimeoutMs = 8_000;
+
+function getUrlAuthCode(): string | null {
+  const searchParams = new URLSearchParams(window.location.search);
+  const hashParams = new URLSearchParams(window.location.hash.replace(/^#/, ""));
+  return searchParams.get("code") ?? hashParams.get("code");
+}
+
+function cleanSetPasswordUrl() {
+  if (window.location.hash || window.location.search) {
+    window.history.replaceState(null, "", "/auth/set-password");
+  }
+}
+
+function withTimeout<T>(promise: Promise<T>, timeoutMs: number): Promise<T> {
+  return Promise.race([
+    promise,
+    new Promise<T>((_, reject) => {
+      window.setTimeout(() => reject(new Error("Tempo esgotado ao validar o link.")), timeoutMs);
+    }),
+  ]);
+}
+
 function SetPasswordPage() {
   const navigate = useNavigate();
   const [checking, setChecking] = useState(true);
@@ -35,9 +58,7 @@ function SetPasswordPage() {
       if (!active) return;
       setHasSession(sessionExists);
       setChecking(false);
-      if (window.location.hash || window.location.search) {
-        window.history.replaceState(null, "", "/auth/set-password");
-      }
+      cleanSetPasswordUrl();
     };
 
     const { data: sub } = supabase.auth.onAuthStateChange((event, session) => {
@@ -46,7 +67,27 @@ function SetPasswordPage() {
       }
     });
 
-    supabase.auth.getSession().then(({ data }) => finishChecking(Boolean(data.session)));
+    async function validateInviteLink() {
+      try {
+        const code = getUrlAuthCode();
+        if (code) {
+          const { data, error } = await withTimeout(
+            supabase.auth.exchangeCodeForSession(code),
+            sessionCheckTimeoutMs,
+          );
+          if (error) throw error;
+          finishChecking(Boolean(data.session));
+          return;
+        }
+
+        const { data } = await withTimeout(supabase.auth.getSession(), sessionCheckTimeoutMs);
+        finishChecking(Boolean(data.session));
+      } catch {
+        finishChecking(false);
+      }
+    }
+
+    void validateInviteLink();
 
     return () => {
       active = false;
