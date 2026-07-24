@@ -20,6 +20,14 @@ interface InterBindings {
   INTER_TOKEN_CACHE?: KVNamespace;
 }
 
+type JsonSafe =
+  | string
+  | number
+  | boolean
+  | null
+  | JsonSafe[]
+  | { [key: string]: JsonSafe };
+
 // Fallback in-memory cache (per isolate). KV é a fonte primária.
 let memToken: { value: string; expiresAt: number; env: InterEnv } | null = null;
 
@@ -190,6 +198,46 @@ function toCurrency(amount: number): string {
   return amount.toFixed(2);
 }
 
+function sanitizeProviderValue(value: unknown, key = ""): JsonSafe {
+  const normalizedKey = key.toLowerCase();
+  if (
+    [
+      "authorization",
+      "access_token",
+      "token",
+      "client_id",
+      "client_secret",
+      "chave",
+      "cpf",
+      "cnpj",
+    ].includes(normalizedKey)
+  ) {
+    return "[redacted]";
+  }
+
+  if (value === null || typeof value === "number" || typeof value === "boolean") {
+    return value;
+  }
+
+  if (typeof value === "string") {
+    return value.length > 4000 ? `${value.slice(0, 4000)}...[truncated]` : value;
+  }
+
+  if (Array.isArray(value)) {
+    return value.map((item) => sanitizeProviderValue(item));
+  }
+
+  if (typeof value === "object") {
+    const out: { [key: string]: JsonSafe } = {};
+    for (const [childKey, childValue] of Object.entries(value as Record<string, unknown>)) {
+      out[childKey] = sanitizeProviderValue(childValue, childKey);
+    }
+    return out;
+  }
+
+  return String(value);
+}
+
 export const interPixProvider: PaymentProvider = {
   async createPixCharge(input: CreatePixChargeInput): Promise<PixCharge> {
     const pixKey = getRequiredEnv("INTER_PIX_KEY");
@@ -236,9 +284,11 @@ export const interPixProvider: PaymentProvider = {
       loc?: { id: number };
       pixCopiaECola?: string;
       calendario?: { criacao: string; expiracao: number };
+      status?: string;
     };
 
     let qrcodeBase64 = "";
+    let qrProviderResponse: JsonSafe | null = null;
     if (cob.loc?.id) {
       const qrUrl = `${baseUrl(env)}/pix/v2/loc/${cob.loc.id}/qrcode`;
       try {
@@ -254,19 +304,41 @@ export const interPixProvider: PaymentProvider = {
         );
         if (qrRes.ok) {
           const qrJson = (await qrRes.json()) as { qrcode?: string; imagemQrcode?: string };
+          qrProviderResponse = sanitizeProviderValue(qrJson);
           qrcodeBase64 = qrJson.imagemQrcode ?? qrJson.qrcode ?? "";
         } else {
-          console.warn("[inter-pix] QR Code request failed", { status: qrRes.status });
+          const text = await qrRes.text();
+          qrProviderResponse = sanitizeProviderValue({
+            ok: false,
+            status: qrRes.status,
+            body: text.slice(0, 1000),
+          });
+          console.warn("[inter-pix] QR Code request failed", qrProviderResponse);
         }
       } catch (error) {
-        console.warn("[inter-pix] QR Code request skipped", {
+        qrProviderResponse = sanitizeProviderValue({
+          ok: false,
           message: error instanceof Error ? error.message : String(error),
         });
+        console.warn("[inter-pix] QR Code request skipped", qrProviderResponse);
       }
     }
 
     const criacao = cob.calendario?.criacao ? new Date(cob.calendario.criacao) : new Date();
     const expiresAt = new Date(criacao.getTime() + expiresIn * 1000).toISOString();
+    const providerResponse = sanitizeProviderValue({
+      env,
+      charge: cob,
+      qrcode: qrProviderResponse,
+    });
+
+    console.info("[inter-pix] Pix charge created", {
+      txid: cob.txid,
+      amount: input.amount,
+      status: cob.status ?? "pending",
+      pixCopyPaste: cob.pixCopiaECola ?? "",
+      providerResponse,
+    });
 
     return {
       txid: cob.txid,
@@ -274,6 +346,7 @@ export const interPixProvider: PaymentProvider = {
       qrcodeBase64,
       copyPaste: cob.pixCopiaECola ?? "",
       expiresAt,
+      providerResponse,
     };
   },
 };

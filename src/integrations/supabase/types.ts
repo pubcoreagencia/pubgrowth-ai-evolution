@@ -241,6 +241,7 @@ export type Database = {
           pix_qrcode: string | null
           pix_txid: string | null
           provider_paid_amount: number | null
+          provider_response: Json | null
           reconciliation_error: string | null
           status: Database["public"]["Enums"]["payment_status"]
           updated_at: string
@@ -259,6 +260,7 @@ export type Database = {
           pix_qrcode?: string | null
           pix_txid?: string | null
           provider_paid_amount?: number | null
+          provider_response?: Json | null
           reconciliation_error?: string | null
           status?: Database["public"]["Enums"]["payment_status"]
           updated_at?: string
@@ -277,6 +279,7 @@ export type Database = {
           pix_qrcode?: string | null
           pix_txid?: string | null
           provider_paid_amount?: number | null
+          provider_response?: Json | null
           reconciliation_error?: string | null
           status?: Database["public"]["Enums"]["payment_status"]
           updated_at?: string

@@ -13,6 +13,7 @@ export interface PixCharge {
   qrcodeBase64: string;
   copyPaste: string;
   expiresAt: string; // ISO
+  providerResponse: unknown;
 }
 
 export interface PaymentProvider {

@@ -1,5 +1,6 @@
 import { createFileRoute, redirect } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
+import { Fragment } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { listAllPaymentOrdersFn, type PaymentOrder } from "@/lib/payments.functions";
 import { StatCard } from "@/components/stat-card";
@@ -18,7 +19,7 @@ export const Route = createFileRoute("/_authenticated/admin/financial")({
     if (!isAdmin) throw redirect({ to: "/" });
   },
   component: AdminFinancialPage,
-  head: () => ({ meta: [{ title: "Financeiro — PubGrowth AI" }] }),
+  head: () => ({ meta: [{ title: "Financeiro - PubGrowth AI" }] }),
 });
 
 const brl = (n: number) =>
@@ -43,6 +44,15 @@ const statusVariant: Record<
   requires_review: "outline",
 };
 
+function formatProviderResponse(value: PaymentOrder["providerResponse"]): string {
+  if (!value) return "Sem resposta registrada.";
+  try {
+    return JSON.stringify(value, null, 2);
+  } catch {
+    return String(value);
+  }
+}
+
 function AdminFinancialPage() {
   const q = useQuery({
     queryKey: ["admin-payment-orders"],
@@ -60,11 +70,10 @@ function AdminFinancialPage() {
     return d.toDateString() === now.toDateString();
   });
 
-  // Top clients by credited amount
   const byClient = new Map<string, { name: string; total: number }>();
   for (const o of paid) {
     const key = o.clientId;
-    const cur = byClient.get(key) ?? { name: o.clientName ?? "—", total: 0 };
+    const cur = byClient.get(key) ?? { name: o.clientName ?? "-", total: 0 };
     cur.total += o.amount;
     byClient.set(key, cur);
   }
@@ -119,26 +128,89 @@ function AdminFinancialPage() {
                       <th className="pb-2">Cliente</th>
                       <th className="pb-2">Valor</th>
                       <th className="pb-2">Status</th>
+                      <th className="pb-2">TXID</th>
                       <th className="pb-2">Pago em</th>
                     </tr>
                   </thead>
                   <tbody>
                     {orders.map((o) => (
-                      <tr key={o.id} className="border-t">
-                        <td className="py-2">
-                          {new Date(o.createdAt).toLocaleString("pt-BR")}
-                        </td>
-                        <td className="py-2">{o.clientName ?? "—"}</td>
-                        <td className="py-2">{brl(o.amount)}</td>
-                        <td className="py-2">
-                          <Badge variant={statusVariant[o.status]}>
-                            {statusLabel[o.status]}
-                          </Badge>
-                        </td>
-                        <td className="py-2">
-                          {o.paidAt ? new Date(o.paidAt).toLocaleString("pt-BR") : "—"}
-                        </td>
-                      </tr>
+                      <Fragment key={o.id}>
+                        <tr className="border-t">
+                          <td className="py-2">
+                            {new Date(o.createdAt).toLocaleString("pt-BR")}
+                          </td>
+                          <td className="py-2">{o.clientName ?? "-"}</td>
+                          <td className="py-2">{brl(o.amount)}</td>
+                          <td className="py-2">
+                            <Badge variant={statusVariant[o.status]}>
+                              {statusLabel[o.status]}
+                            </Badge>
+                          </td>
+                          <td className="max-w-48 py-2">
+                            <code className="block truncate rounded bg-muted px-2 py-1 text-xs">
+                              {o.pixTxid ?? "-"}
+                            </code>
+                          </td>
+                          <td className="py-2">
+                            {o.paidAt ? new Date(o.paidAt).toLocaleString("pt-BR") : "-"}
+                          </td>
+                        </tr>
+                        <tr>
+                          <td colSpan={6} className="pb-3">
+                            <details className="rounded-md border bg-muted/30 p-3">
+                              <summary className="cursor-pointer text-xs font-semibold uppercase text-muted-foreground">
+                                Homologação PIX sandbox
+                              </summary>
+                              <div className="mt-3 grid gap-3 lg:grid-cols-2">
+                                <div className="space-y-2">
+                                  <div>
+                                    <p className="text-xs font-medium text-muted-foreground">
+                                      TXID
+                                    </p>
+                                    <code className="block break-all rounded border bg-background p-2 text-xs">
+                                      {o.pixTxid ?? "-"}
+                                    </code>
+                                  </div>
+                                  <div className="grid grid-cols-2 gap-2">
+                                    <div>
+                                      <p className="text-xs font-medium text-muted-foreground">
+                                        Valor
+                                      </p>
+                                      <p className="text-sm font-medium">{brl(o.amount)}</p>
+                                    </div>
+                                    <div>
+                                      <p className="text-xs font-medium text-muted-foreground">
+                                        Status
+                                      </p>
+                                      <p className="text-sm font-medium">
+                                        {statusLabel[o.status]}
+                                      </p>
+                                    </div>
+                                  </div>
+                                  <div>
+                                    <p className="text-xs font-medium text-muted-foreground">
+                                      PIX copia e cola
+                                    </p>
+                                    <textarea
+                                      readOnly
+                                      value={o.pixCopyPaste ?? ""}
+                                      className="min-h-24 w-full resize-y rounded border bg-background p-2 font-mono text-xs"
+                                    />
+                                  </div>
+                                </div>
+                                <div>
+                                  <p className="text-xs font-medium text-muted-foreground">
+                                    Resposta bruta do provider
+                                  </p>
+                                  <pre className="mt-2 max-h-72 overflow-auto rounded border bg-background p-3 text-xs">
+                                    {formatProviderResponse(o.providerResponse)}
+                                  </pre>
+                                </div>
+                              </div>
+                            </details>
+                          </td>
+                        </tr>
+                      </Fragment>
                     ))}
                   </tbody>
                 </table>

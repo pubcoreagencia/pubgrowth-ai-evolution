@@ -1,5 +1,6 @@
 import { createServerFn } from "@tanstack/react-start";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
+import type { Json } from "@/integrations/supabase/types";
 import { z } from "zod";
 
 export type PaymentStatus = "pending" | "paid" | "expired" | "cancelled" | "requires_review";
@@ -17,6 +18,7 @@ export interface PaymentOrder {
   paidAt: string | null;
   createdAt: string;
   reconciliationError: string | null;
+  providerResponse: Json | null;
   clientName?: string | null;
 }
 
@@ -69,6 +71,7 @@ function mapRow(r: {
   paid_at: string | null;
   created_at: string;
   reconciliation_error: string | null;
+  provider_response: Json | null;
   clients?: { name: string } | null;
 }): PaymentOrder {
   return {
@@ -84,6 +87,7 @@ function mapRow(r: {
     paidAt: r.paid_at,
     createdAt: r.created_at,
     reconciliationError: r.reconciliation_error,
+    providerResponse: r.provider_response,
     clientName: r.clients?.name ?? null,
   };
 }
@@ -159,12 +163,21 @@ export const createMyPixOrderFn = createServerFn({ method: "POST" })
           pix_copy_paste: charge.copyPaste,
           external_payment_id: charge.externalId,
           expires_at: charge.expiresAt,
+          provider_response: charge.providerResponse as Json,
           reconciliation_error: null,
         })
         .eq("id", inserted.id)
         .select("*, clients(name)")
         .single();
       if (updateError) throw new Error(updateError.message);
+      console.info("[payments] Pix order created", {
+        paymentOrderId: inserted.id,
+        txid: charge.txid,
+        amount: data.amount,
+        status: updated.status,
+        pixCopyPaste: charge.copyPaste,
+        providerResponse: charge.providerResponse,
+      });
       return mapRow(updated);
     } catch (error) {
       const safeMessage = sanitizePaymentError(error);
