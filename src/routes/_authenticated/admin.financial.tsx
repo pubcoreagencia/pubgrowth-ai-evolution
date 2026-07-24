@@ -216,12 +216,12 @@ function AdminFinancialPage() {
                                       </p>
                                     </div>
                                   </div>
-                                  <div className="flex flex-wrap gap-2">
+                                  <div className="grid gap-2 sm:grid-cols-2">
                                     <Button
                                       type="button"
                                       size="sm"
                                       variant="secondary"
-                                      className="gap-2"
+                                      className="justify-start gap-2"
                                       disabled={
                                         o.status === "paid" ||
                                         !o.pixTxid ||
@@ -238,8 +238,8 @@ function AdminFinancialPage() {
                                     <Button
                                       type="button"
                                       size="sm"
-                                      variant="outline"
-                                      className="gap-2"
+                                      variant="default"
+                                      className="justify-start gap-2"
                                       disabled={
                                         o.status === "paid" ||
                                         !o.pixTxid ||
@@ -251,7 +251,7 @@ function AdminFinancialPage() {
                                       <CheckCircle2 className="h-4 w-4" />
                                       {confirmLocalMut.isPending
                                         ? "Confirmando..."
-                                        : "Confirmar localmente"}
+                                        : "Confirmar localmente sem Inter"}
                                     </Button>
                                   </div>
                                   <div>
