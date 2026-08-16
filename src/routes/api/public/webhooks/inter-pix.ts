@@ -2,7 +2,10 @@ import { createFileRoute } from "@tanstack/react-router";
 
 // Banco Inter PIX webhook.
 // Security: Inter uses mTLS on the callback. We add an additional shared-secret
-// check via URL path segment or `x-webhook-secret` header for defense-in-depth.
+// check via `x-webhook-secret` header for defense-in-depth.
+//
+// INTER_WEBHOOK_SECRET MUST be configured in production. If absent, the webhook
+// fails closed (returns 503) rather than accepting unauthenticated requests.
 
 interface InterPixEvent {
   endToEndId?: string;
@@ -25,15 +28,19 @@ function timingSafeEqualStr(a: string, b: string): boolean {
 
 async function handle(request: Request): Promise<Response> {
   const secret = process.env.INTER_WEBHOOK_SECRET;
-  if (secret) {
-    const url = new URL(request.url);
-    const provided =
-      request.headers.get("x-webhook-secret") ??
-      url.searchParams.get("secret") ??
-      "";
-    if (!timingSafeEqualStr(provided, secret)) {
-      return new Response("Unauthorized", { status: 401 });
-    }
+  if (!secret) {
+    // Fail closed — do NOT process payments without webhook authentication.
+    console.error("[inter-pix] INTER_WEBHOOK_SECRET is not configured — webhook rejected");
+    return new Response("Service Unavailable: webhook not configured", { status: 503 });
+  }
+
+  const url = new URL(request.url);
+  const provided =
+    request.headers.get("x-webhook-secret") ??
+    url.searchParams.get("secret") ??
+    "";
+  if (!timingSafeEqualStr(provided, secret)) {
+    return new Response("Unauthorized", { status: 401 });
   }
 
   let payload: InterWebhookPayload;
@@ -101,6 +108,9 @@ async function handle(request: Request): Promise<Response> {
 
   return new Response("ok");
 }
+
+// Export for testing — re-export the handle function
+export { handle as _handleWebhook, timingSafeEqualStr as _timingSafeEqualStr };
 
 export const Route = createFileRoute("/api/public/webhooks/inter-pix")({
   server: {
